@@ -175,7 +175,13 @@ sp = plan.get("speaker", {"mode": "none"})
 mode = sp.get("mode", "full") if plan.get("source") else "none"
 src = P(plan.get("source")) if plan.get("source") else None
 matte = P(plan.get("matte")) if plan.get("matte") else None
-use_person = matte and os.path.exists(matte) and ("behind" in layers or sp.get("person"))
+PSC = float(sp.get("personScale", 1.0))   # <1 shrinks the person cut-out (needs backdrop blur/hide)
+PDROP = int(float(sp.get("personDrop", 0)) * H)   # slide the cut-out down (full width, no side edges) to free the top
+BACKDROP = sp.get("backdrop", "video")   # video | blur | hide: what shows behind the person cut-out
+use_person = matte and os.path.exists(matte) and ("behind" in layers or sp.get("person") or BACKDROP != "video" or sp.get("glow"))
+if BACKDROP != "video" and not use_person:
+    log("WARNING: speaker.backdrop needs the person matte (run matte.py) - showing the plain video instead.")
+    BACKDROP = "video"
 if plan.get("matte") and not use_person and "behind" in layers:
     log("WARNING: matte file missing - 'behind' layer will sit on top of the speaker. Run matte.py.")
 
@@ -232,9 +238,9 @@ def zoom_centre_expr():
     return (f"clip(iw*({fx})-iw/zoom/2,0,iw-iw/zoom)", f"clip(ih*({fy})-ih/zoom/2,0,ih-ih/zoom)")
 
 
-def speaker_chain(label_in, label_out, is_mask=False, sw=0, sh=0):
+def speaker_chain(label_in, label_out, is_mask=False, sw=0, sh=0, rect=None):
     """zoom -> cover-crop to rect."""
-    rx, ry, rw, rh = sp.get("rect", [0, 0, W, H])
+    rx, ry, rw, rh = rect or sp.get("rect", [0, 0, W, H])
     fx = sp.get("focusX", 0.5); fy = sp.get("focusY", 0.5)
     f = []
     ze = zoom_expr()
@@ -247,6 +253,42 @@ def speaker_chain(label_in, label_out, is_mask=False, sw=0, sh=0):
         f.append("hflip")
     f.append("format=gray" if is_mask else "format=yuva420p")
     return f"[{label_in}]" + ",".join(f) + f"[{label_out}]"
+
+
+def layouts_overlay(graph, add_input, cur, si, sw, sh, single_t):
+    """speaker.layouts: [{start, end, rect:[x,y,w,h] px (or rectFrac), radius, rot (deg)}] - the footage moves
+    between framed cards over time (editorial explainers). Each layout is its own cropped, rounded, rotated card."""
+    from PIL import ImageDraw
+    los = []
+    for lo in sp["layouts"]:
+        if "rectFrac" in lo:
+            x, y, w, h = lo["rectFrac"]; r = [int(x * W), int(y * H), int(w * W) // 2 * 2, int(h * H) // 2 * 2]
+        else:
+            r = [int(v) for v in lo["rect"]]; r[2] -= r[2] % 2; r[3] -= r[3] % 2
+        if single_t is None or lo["start"] <= single_t < lo["end"]:
+            los.append((lo, r))
+    if not los:
+        return cur
+    graph.append(f"[srcL]split={len(los)}" + "".join(f"[sl{k}]" for k in range(len(los))) if len(los) > 1 else "[srcL]null[sl0]")
+    for k, (lo, (x, y, w, h)) in enumerate(los):
+        graph.append(speaker_chain(f"sl{k}", f"lc{k}", sw=sw, sh=sh, rect=[x, y, w, h]))
+        rad = min(lo.get("radius", sp.get("radius", 36)), min(w, h) // 2)
+        rm = os.path.join(rdir, f"rmask_{w}x{h}_{rad}.png")
+        if not os.path.exists(rm):
+            im = Image.new("L", (w, h), 0); ImageDraw.Draw(im).rounded_rectangle([0, 0, w - 1, h - 1], radius=rad, fill=255); im.save(rm)
+        ri = add_input(["-loop", "1", "-i", rm])
+        graph.append(f"[{ri}:v]format=gray[lm{k}]")
+        graph.append(f"[lc{k}][lm{k}]alphamerge[la{k}]")
+        rot = lo.get("rot", 0)
+        lab, ox, oy = f"la{k}", x, y
+        if rot:
+            import math
+            a = math.radians(rot); ow = int(abs(w * math.cos(a)) + abs(h * math.sin(a))) // 2 * 2 + 2; oh = int(abs(w * math.sin(a)) + abs(h * math.cos(a))) // 2 * 2 + 2
+            graph.append(f"[la{k}]rotate=a={a:.5f}:ow={ow}:oh={oh}:c=none[lr{k}]")
+            lab, ox, oy = f"lr{k}", x - (ow - w) // 2, y - (oh - h) // 2
+        en = "" if single_t is not None else f":enable='between(t,{lo['start']},{lo['end']})'"
+        graph.append(f"[{cur}][{lab}]overlay={ox}:{oy}:shortest=0:eof_action=pass{en}[lo{k}]"); cur = f"lo{k}"
+    return cur
 
 
 def composite(out_path, single_t=None, still_layers=None):
@@ -277,8 +319,11 @@ def composite(out_path, single_t=None, still_layers=None):
             graph.append(f"[{si}:v]setpts=PTS-STARTPTS{cc},split=2[srcA][srcB]")
         else:
             graph.append(f"[{si}:v]setpts=PTS-STARTPTS{cc}[srcA]")
-        graph.append(speaker_chain("srcA", "spk", sw=sw, sh=sh))
-        radius = min(sp.get("radius", 0), min(rw, rh) // 2)
+        if sp.get("layouts") and not use_person:
+            graph.append(f"[srcA]null[srcL]")
+        else:
+            graph.append(speaker_chain("srcA", "spk", sw=sw, sh=sh))
+        radius = 0 if (sp.get("layouts") and not use_person) else min(sp.get("radius", 0), min(rw, rh) // 2)
         rmask = None
         if radius:
             rm = os.path.join(rdir, f"rmask_{rw}x{rh}_{radius}.png")
@@ -295,7 +340,16 @@ def composite(out_path, single_t=None, still_layers=None):
             spk = "spkr"
         else:
             spk = "spk"
-        graph.append(f"[{cur}][{spk}]overlay={rx}:{ry}:shortest=0:eof_action=pass[c1]"); cur = "c1"
+        if sp.get("layouts") and not use_person:
+            cur = layouts_overlay(graph, add_input, cur, si, sw, sh, single_t)
+        elif BACKDROP == "blur":
+            bd = sp.get("backdropBlur", 40); dim = sp.get("backdropDim", 0.45)
+            graph.append(f"[{spk}]gblur=sigma={bd},colorchannelmixer=rr={1-dim}:gg={1-dim}:bb={1-dim}[spkb]")
+            graph.append(f"[{cur}][spkb]overlay={rx}:{ry}:shortest=0:eof_action=pass[c1]"); cur = "c1"
+        elif BACKDROP != "hide":
+            graph.append(f"[{cur}][{spk}]overlay={rx}:{ry}:shortest=0:eof_action=pass[c1]"); cur = "c1"
+        else:
+            graph.append(f"[{spk}]nullsink")   # background replaced: only the cut-out is shown
         if "behind" in layers:
             bi = add_input(seq("behind")); graph.append(f"[{cur}][{bi}:v]overlay=0:0[c2]"); cur = "c2"
         if use_person:
@@ -307,8 +361,41 @@ def composite(out_path, single_t=None, still_layers=None):
             else:
                 mk = "mk"
             graph.append(speaker_chain("srcB", "pv", sw=sw, sh=sh).replace("format=yuva420p", "format=yuv420p"))
+            if PSC < 1 or PDROP:   # the frame's top edge would show as a hard line once the cut-out is smaller: fade it
+                fm = os.path.join(rdir, f"topfade_{rw}x{rh}.png")
+                if not os.path.exists(fm):
+                    import numpy as _np
+                    ramp = _np.clip(_np.arange(rh) / max(1, rh * 0.12), 0, 1) ** 1.5
+                    Image.fromarray((_np.repeat(ramp[:, None], rw, 1) * 255).astype("uint8"), "L").save(fm)
+                fi_ = add_input(["-loop", "1", "-i", fm])
+                graph.append(f"[{fi_}:v]format=gray,split=2[tfm][tfm2]")
+                graph.append(f"[{mk}][tfm]blend=all_mode=multiply:shortest=1[mkf]"); mk = "mkf"
+            if sp.get("glow"):
+                gl = sp["glow"] if isinstance(sp["glow"], dict) else {"color": sp["glow"]}
+                gsz, gain = gl.get("size", 22), gl.get("strength", 1.6)
+                graph.append(f"[{mk}]split=2[mkp][mkg]"); mk = "mkp"
+                graph.append(f"[mkg]gblur=sigma={gsz},lut=y='min(255,val*{gain})'[gma0]")
+                if PSC < 1 or PDROP:
+                    graph.append("[gma0][tfm2]blend=all_mode=multiply:shortest=1,lut=y='val*val/255'[gma]")
+                else:
+                    graph.append("[gma0]null[gma]")
+                graph.append(f"color=c={gl.get('color', '#FFC24D')}:s={rw}x{rh}:r={FPS}:d={dur},format=yuva420p[gcol]")
+                graph.append("[gcol][gma]alphamerge[glow]")
+                gx, gy, glab = rx, ry, "glow"
+                if PSC < 1:
+                    graph.append(f"[glow]scale={int(rw * PSC) // 2 * 2}:{int(rh * PSC) // 2 * 2}[glows]"); glab = "glows"
+                    gx, gy = rx + (rw - int(rw * PSC) // 2 * 2) // 2, ry + rh - int(rh * PSC) // 2 * 2
+                gy += PDROP
+                graph.append(f"[{cur}][{glab}]overlay={gx}:{gy}:shortest=0:eof_action=pass[cg]"); cur = "cg"
+            if (PSC < 1 or PDROP) and not sp.get("glow"):
+                graph.append("[tfm2]nullsink")
             graph.append(f"[pv][{mk}]alphamerge[person]")
-            graph.append(f"[{cur}][person]overlay={rx}:{ry}[c3]"); cur = "c3"
+            px, py, plab = rx, ry, "person"
+            if PSC < 1:   # smaller cut-out, bottom-centred, over the (blurred / replaced) background
+                graph.append(f"[person]scale={int(rw * PSC) // 2 * 2}:{int(rh * PSC) // 2 * 2}[persons]"); plab = "persons"
+                px, py = rx + (rw - int(rw * PSC) // 2 * 2) // 2, ry + rh - int(rh * PSC) // 2 * 2
+            py += PDROP
+            graph.append(f"[{cur}][{plab}]overlay={px}:{py}[c3]"); cur = "c3"
     elif "behind" in layers:
         bi = add_input(seq("behind")); graph.append(f"[{cur}][{bi}:v]overlay=0:0[c2]"); cur = "c2"
     # cutaways (full-frame b-roll videos); stills show the one on screen at single_t

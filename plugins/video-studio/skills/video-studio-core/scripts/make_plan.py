@@ -82,7 +82,9 @@ one thing things stuff kind sort lot lots out up down off now well even still wa
 STRONG = set("""free secret never always best worst money million billion mistake stop why how new fast easy huge viral truth
 hack hidden simple wrong right crazy insane biggest important first last only nobody everyone everything nothing
 win lose fail growth rich broke results proof real fake""".split())
-clean = lambda s: re.sub(r"[^\w%$'.,]", "", s.lower()).strip(".,")
+import unicodedata
+# keep letters, digits and combining marks (Devanagari/Indic vowel signs are category M, not \w)
+clean = lambda s: "".join(ch for ch in s.lower() if ch.isalnum() or ch in "%$'.,_" or unicodedata.category(ch).startswith("M")).strip(".,")
 NUM = re.compile(r"^(\$|₹|€|£)?(\d[\d,]*(\.\d+)?)(k|m|b|x|%)?$", re.I)
 
 
@@ -105,7 +107,8 @@ def sentences():
         if cur and (w["start"] - words[i - 1]["end"] > 0.6):
             out.append(cur); cur = []
         cur.append(i)
-        if re.search(r"[.!?]$", w["w"]):
+        nxt_gap = words[i + 1]["start"] - w["end"] if i + 1 < len(words) else 0
+        if re.search(r"[.!?।॥]$", w["w"]) or (w["w"].endswith(",") and nxt_gap >= 0.3):
             out.append(cur); cur = []
     if cur: out.append(cur)
     return out
@@ -203,9 +206,11 @@ if auto.get("keywords") and words:
         w = dict(words[i], start=bsnap(words[i]["start"]))
         on_beat = w["start"] != words[i]["start"]
         if tpls:
-            e = fill(tpls[n % len(tpls)], text=disp(w).upper() if k.get("uppercase") else disp(w))
-            e["start"] = round(w["start"] - 0.05, 3); e["end"] = round(w["start"] + k.get("hold", 1.3), 3)
-            e["_role"] = 2; els.append(e)
+            tpl = tpls[n % len(tpls)]
+            for t1 in (tpl if isinstance(tpl, list) else [tpl]):   # a list = a group (e.g. word + hand-drawn circle)
+                e = fill(t1, text=disp(w).upper() if k.get("uppercase") else disp(w))
+                e["start"] = round(w["start"] - 0.05, 3); e["end"] = round(w["start"] + k.get("hold", 1.3), 3)
+                e["_role"] = 2; e["_grp"] = f"k{n}"; els.append(e)
         if k.get("zoom"):
             zooms.append({"start": round(w["start"] - (0 if on_beat else 0.06), 3), "end": round(w["start"] + k.get("zoomHold", 1.0), 3),
                           "scale": k["zoom"] if n % 2 == 0 or not k.get("alternate") else 1 + (k["zoom"] - 1) * 0.6,
@@ -218,12 +223,21 @@ if auto.get("keywords") and words:
             e["keywords"] = sorted({clean(disp(words[i])) for i in kw_picked})
 
 # headlines per sentence
+LAYOUTS = []
 if auto.get("headlines") and words:
     hcfg = auto["headlines"]
     tpls = hcfg["element"] if isinstance(hcfg["element"], list) else [hcfg["element"]]
     for n, sidx in enumerate(SENTS):
+        if hcfg.get("layouts"):   # footage card moves to a new framed position every sentence (back to back, no gaps)
+            nx = SENTS[n + 1] if n + 1 < len(SENTS) else None
+            lo = dict(hcfg["layouts"][n % len(hcfg["layouts"])])
+            lo["start"] = 0 if n == 0 else round(max(0, words[sidx[0]]["start"] - 0.08), 3)
+            lo["end"] = round(words[nx[0]]["start"] - 0.08, 3) if nx else round(dur + 1, 3)
+            LAYOUTS.append(lo)
         ws = [(score(words[i], i), i) for i in sidx]
         best = sorted([x for x in ws if x[0] > 0], reverse=True)[:hcfg.get("maxWords", 2)]
+        if not best and tpls:   # every sentence gets its headline (scene): fall back to the longest word
+            best = [max(((len(clean(words[i]["w"])), i) for i in sidx))]
         if not best:
             continue
         txt = " ".join(disp(words[i]) for _, i in sorted(best, key=lambda x: x[1]))
@@ -234,9 +248,11 @@ if auto.get("headlines") and words:
         s = words[sidx[0]]["start"]
         nxt = SENTS[n + 1] if n + 1 < len(SENTS) else None
         e_t = words[nxt[0]]["start"] if nxt else min(dur, words[sidx[-1]]["end"] + 0.6)
-        e = fill(tpls[n % len(tpls)], text=txt)
-        e["start"] = round(max(0, s - 0.08), 3); e["end"] = round(e_t, 3)
-        e["_role"] = 2; els.append(e)
+        tpl = tpls[n % len(tpls)] if tpls else []
+        for gi, t1 in enumerate(tpl if isinstance(tpl, list) else [tpl]):   # a list = a group (e.g. backdrop + headline)
+            e = fill(t1, text=txt)
+            e["start"] = round(max(0, s - 0.08), 3); e["end"] = round(e_t - (0.08 if nxt else 0), 3)   # hand over cleanly to the next sentence
+            e["_role"] = 2; e["_grp"] = f"h{n}"; els.append(e)
 
 # numbers -> counters
 if auto.get("numbers") and words:
@@ -382,6 +398,11 @@ if not src:
 if "rectFrac" in spk:
     x, y, w, h = spk.pop("rectFrac"); spk["rect"] = [int(x * W), int(y * H), int(w * W) // 2 * 2, int(h * H) // 2 * 2]
 spk.setdefault("zooms", [])
+if LAYOUTS and spk.get("mode") != "none":
+    for lo in LAYOUTS:
+        if "rectFrac" in lo:
+            x, y, w, h = lo.pop("rectFrac"); lo["rect"] = [int(x * W), int(y * H), int(w * W) // 2 * 2, int(h * H) // 2 * 2]
+    spk["layouts"] = LAYOUTS
 if spk.get("mode") != "none":
     spk["zooms"] += zooms
 

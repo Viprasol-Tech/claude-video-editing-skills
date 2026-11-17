@@ -1,6 +1,6 @@
 {
   "name": "video-studio",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A complete professional video editor for Claude. Hand any footage to video-director and it decides and runs the edit: 42 genre skills (weddings, podcasts, ads, docs, reels, music videos...), 5 finishing/delivery skills and 40 style skins on one engine - editor-grade cuts, multi-clip timelines, face-follow reframe, colour grading, sound mix to platform loudness, motion graphics, subtitles, thumbnails and QC. Free and local.",
   "author": {
     "name": "Viprasol"

@@ -1,0 +1,6 @@
+/* Editorial Cards - Editorial explainer on a warm paper page: your footage sits in a tilted rounded card that moves to a new spot every sentence, big black words land as you say them, and key words get hand-drawn circles and underlines. */
+.ed-bg { background-color: #F4EFE6; }
+.ed-cap .cap-line { font-size: 92px; font-family: 'Inter Tight',sans-serif; font-weight: 800; color: #111; text-shadow: none; letter-spacing: -.025em; line-height: 1.02; justify-content: flex-start; text-align: left; }
+.ed-cap .cap-word { color: #111; }
+.ed-cap .cap-word.is-key { font-family: 'Instrument Serif',serif; font-style: italic; font-weight: 400; color: #E4572E; letter-spacing: 0; }
+.ed-key .anim { font-family: 'Instrument Serif',serif; font-style: italic; font-size: 96px; color: #E4572E; line-height: 1; }

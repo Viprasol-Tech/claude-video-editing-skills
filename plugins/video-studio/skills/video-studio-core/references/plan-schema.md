@@ -22,7 +22,13 @@ All times are in seconds on the **cut** timeline (after autocut). All positions 
     "focusX": 0.5, "focusY": 0.35,  // which part of a wider source to keep when cropping
     "push": 0.04,                   // slow push-in over the whole video (0.04 = +4%)
     "mirror": false,
-    "zooms": [{"start": 2.1, "end": 3.4, "scale": 1.15, "snap": false}]   // + optional "cx","cy" / "toFace"
+    "zooms": [{"start": 2.1, "end": 3.4, "scale": 1.15, "snap": false}],  // + optional "cx","cy" / "toFace"
+    "backdrop": "video",            // video | blur (blurred, dimmed copy of the shot) | hide (bg/behind layers only); blur/hide need matte
+    "backdropBlur": 36, "backdropDim": 0.5,
+    "glow": {"color": "#F5B942", "size": 16, "strength": 1.7},   // soft rim glow around the person cut-out (needs matte)
+    "personScale": 1.0,             // <1 shrinks the cut-out, bottom-centred (for shots with headroom and room at the sides)
+    "personDrop": 0,                // slide the cut-out down by this fraction of H at full width (tight selfies); top edge fades
+    "layouts": [{"start": 0, "end": 3.2, "rect": [80, 700, 700, 800], "radius": 34, "rot": -3}]  // footage card moves over time (no matte)
   },
   "theme": {"vars": {"--c-accent": "#FFE14D"}, "fontsUrl": "https://fonts.googleapis.com/...", "cssFiles": ["/abs/theme.css"], "css": ""},
   "words": [{"w": "Hello", "start": 0.2, "end": 0.5}],
@@ -40,7 +46,7 @@ All times are in seconds on the **cut** timeline (after autocut). All positions 
 ## Layers (stacking order, back to front)
 
 1. `bg`: opaque HTML background (only when an element uses it)
-2. speaker video (full frame or panel)
+2. speaker video (full frame, panel or moving `layouts` cards; blurred or hidden with `backdrop`), then the `glow`
 3. `behind`: HTML drawn **behind the person** (needs `matte`)
 4. person cut-out (from `matte`)
 5. `cutaways`: full-frame B-roll video

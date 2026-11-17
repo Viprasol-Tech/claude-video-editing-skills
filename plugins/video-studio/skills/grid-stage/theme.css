@@ -1,0 +1,11 @@
+/* Grid Stage - Dark studio stage: your background becomes a black grid with a soft spotlight and a slow-turning disc, one giant word sits behind your head each sentence, small uppercase captions and glass pills. */
+.gs-bg { background-color: #0B0B0C; background-image: radial-gradient(ellipse at 50% 32%, rgba(255,255,255,.13) 0, rgba(255,255,255,0) 55%), linear-gradient(rgba(255,255,255,.06) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,.06) 2px, transparent 2px); background-size: 100% 100%, 72px 72px, 72px 72px; }
+.gs-disc .shape { border: none !important; border-radius: 50%; background: conic-gradient(from 0deg, rgba(255,255,255,.07), rgba(255,255,255,0) 18%, rgba(255,255,255,.07) 50%, rgba(255,255,255,0) 68%, rgba(255,255,255,.07)), repeating-radial-gradient(circle, #141416 0 5px, #1c1c1f 5px 8px) !important; box-shadow: 0 0 0 2px rgba(255,255,255,.06), 0 30px 120px rgba(0,0,0,.85) !important; }
+.gs-head .anim { font-family: 'Anton',sans-serif; font-size: 360px; line-height: .85; color: #E9EAEC; text-shadow: 0 0 40px rgba(255,255,255,.18); }
+.gs-head.alt .anim { color: transparent; -webkit-text-stroke: 4px rgba(233,234,236,.9); text-shadow: none; }
+.gs-cap .cap-line { font-family: 'Inter',sans-serif; letter-spacing: .06em; text-shadow: 0 2px 12px #000; }
+.gs-cap .cap-word { color: rgba(255,255,255,.55); } .gs-cap .cap-word.is-active, .gs-cap .cap-word.is-spoken { color: #fff; }
+.gs-pill .anim { font-family: 'Inter',sans-serif; font-weight: 700; font-size: 30px; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); border-radius: 40px; padding: 12px 26px 12px 48px; position: relative; }
+.gs-pill .anim::before { content: ""; position: absolute; left: 20px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: var(--c-accent); box-shadow: 0 0 12px var(--c-accent); }
+.gs-card { background: linear-gradient(115deg, #0E0E10 0 48%, #26262A 48% 52%, #0E0E10 52%); }
+.gs-cardtitle .anim { font-family: 'Anton',sans-serif; font-size: 150px; color: #fff; }

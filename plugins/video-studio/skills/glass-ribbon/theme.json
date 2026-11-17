@@ -1,0 +1,110 @@
+{
+  "name": "glass-ribbon",
+  "format": "9:16",
+  "fps": 30,
+  "fontsUrl": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@500;600;800&display=swap",
+  "vars": {
+    "--font-display": "'Inter',sans-serif",
+    "--font-body": "'Inter',sans-serif",
+    "--c-bg": "#14072E",
+    "--c-accent": "#B78CFF",
+    "--c-accent2": "#6B3BFF",
+    "--cap-size": "58px",
+    "--cap-weight": "600"
+  },
+  "speaker": {
+    "mode": "full",
+    "focusX": 0.5,
+    "focusY": 0.3,
+    "backdrop": "hide",
+    "person": true,
+    "personDrop": 0.1
+  },
+  "matte": true,
+  "background": "#14072E",
+  "auto": {
+    "static": [
+      {
+        "type": "background",
+        "kind": "solid",
+        "className": "gr-bg"
+      },
+      {
+        "type": "shape",
+        "kind": "bubbles",
+        "layer": "behind",
+        "count": 12,
+        "className": "gr-orbs",
+        "x": "=W/2",
+        "y": "=H/2",
+        "w": "=W",
+        "h": "=H",
+        "speed": 0.25
+      },
+      {
+        "type": "shape",
+        "kind": "ribbon",
+        "layer": "behind",
+        "className": "gr-ribbon",
+        "x": "=W/2",
+        "y": "=H*0.3",
+        "w": "=W*1.3",
+        "h": "=H*0.42",
+        "thickness": 110,
+        "color": "#E4D2FF",
+        "color2": "#7A3CFF",
+        "speed": 0.5
+      },
+      {
+        "type": "shape",
+        "kind": "ribbon",
+        "layer": "front",
+        "className": "gr-ribbon gr-ribbon-front",
+        "x": "=W/2",
+        "y": "=H*0.7",
+        "w": "=W*1.3",
+        "h": "=H*0.16",
+        "thickness": 22,
+        "color": "#CDB2FF",
+        "color2": "#8A55FF",
+        "speed": 0.7
+      }
+    ],
+    "captions": {
+      "type": "captions",
+      "mode": "karaoke",
+      "maxWords": 3,
+      "y": "=H*0.78",
+      "className": "gr-cap"
+    },
+    "keywords": {
+      "every": 2.8,
+      "hold": 1.6,
+      "zoom": 1.06,
+      "zoomHold": 1.0,
+      "element": [
+        {
+          "type": "chip",
+          "text": "{text}",
+          "className": "gr-card",
+          "x": "=W*0.3",
+          "y": "=H*0.17",
+          "in": "springPop"
+        },
+        {
+          "type": "chip",
+          "text": "{text}",
+          "className": "gr-card",
+          "x": "=W*0.62",
+          "y": "=H*0.22",
+          "in": "springPop"
+        }
+      ]
+    }
+  },
+  "finish": {
+    "grade": "none",
+    "grain": 3,
+    "vignette": true
+  }
+}

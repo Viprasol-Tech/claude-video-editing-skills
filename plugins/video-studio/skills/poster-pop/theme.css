@@ -1,0 +1,13 @@
+/* Poster Pop - Retro collage edit: the background behind you swaps to a new bold poster pattern (stripes, checkerboard, grid, sunburst, colour field) on every sentence, with a chunky slab headline and warm film grain. */
+.pp-bg { background-color: #F2E3C6; }
+.pp-stripes { background: repeating-linear-gradient(-32deg, #F2E3C6 0 70px, #D9412B 70px 140px, #F2A93B 140px 210px, #1F3A8A 210px 280px); }
+.pp-checker { background: conic-gradient(#C8302B 25%, #F3E6CF 0 50%, #C8302B 0 75%, #F3E6CF 0) 0 0 / 150px 150px; }
+.pp-grid { background-color: #1E5B3A; background-image: linear-gradient(rgba(255,255,255,.22) 3px, transparent 3px), linear-gradient(90deg, rgba(255,255,255,.22) 3px, transparent 3px); background-size: 120px 120px; }
+.pp-sun { background: repeating-conic-gradient(from 0deg at 50% 38%, #F5B335 0 9deg, #E8742C 9deg 18deg); }
+.pp-red { background: radial-gradient(circle at 50% 42%, #F0532F 0, #A3210F 55%, #4A0B05 100%); }
+.pp-blue { background: radial-gradient(circle at 50% 40%, #3456E0 0, #1A2A9A 55%, #070D3D 100%); }
+.pp-head .anim { font-family: var(--font-display); font-size: 170px; line-height: .9; color: #F7E7C4; -webkit-text-stroke: 6px #1B1310; paint-order: stroke fill; text-shadow: 10px 10px 0 #1B1310; }
+.pp-head.alt .anim { color: #F2A93B; }
+.pp-head.dark .anim { color: #1F3A8A; -webkit-text-stroke: 6px #F7E7C4; text-shadow: 10px 10px 0 #F7E7C4; }
+.pp-cap .cap-line { font-family: var(--font-body); letter-spacing: .04em; background: #1B1310; color: #F7E7C4; padding: .12em .5em; width: fit-content; margin: 0 auto; text-shadow: none; }
+.pp-cap .cap-word { color: rgba(247,231,196,.6); } .pp-cap .cap-word.is-active, .pp-cap .cap-word.is-spoken { color: #F7E7C4; } .pp-cap .cap-word.is-active { color: #F2A93B; }

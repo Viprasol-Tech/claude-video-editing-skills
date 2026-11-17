@@ -6,7 +6,7 @@ Everything runs on your own computer: no account, no watermark, no credits, no c
 
 - **42 genre skills** decide *how it is cut*: weddings, podcasts, ads, documentaries, reels, music videos and more.
 - **5 utility skills** handle finishing, platform versions, accessibility, NLE hand-off and review rounds.
-- **40 style skins** decide *how it looks*: captions, titles, cards and graphics.
+- **46 style skins** decide *how it looks*: captions, titles, cards and graphics.
 - **1 core engine** (`video-studio-core`) holds the tools and the editor's judgement that every skill uses.
 
 Run any genre with any skin: `wedding-highlight` + `doc-real`, or `retention-reel` + `halo-cut`.
@@ -196,19 +196,19 @@ Each one has a matching preset: `python CORE/scripts/editor.py genre NAME` shows
 | `editor-handoff` | EDL, FCPXML and OTIO timelines, ProRes 4444 graphics layer, mix WAV for an NLE |
 | `versions-review` | numbered versions never overwritten, A/B contact sheets, notes rounds |
 
-## Style skins (40)
+## Style skins (46)
 
 Each skin is a folder with `theme.json` and `theme.css`. Pass it as `--style`.
 
 | category | skins |
 | --- | --- |
-| Talking-head reel (23) | `halo-cut` `depth-type`* `split-proof` `neon-orbit`* `paper-cut` `chaos-stack` `bold-bounce` `minimal-mono` `frame-studio` `vhs-tape` `y2k-chrome`* `news-desk` `doc-real` `cinematic-phone` `sticker-pop` `terminal-tech` `comic-panel` `swiss-poster`* `soft-gradient` `countdown-list` `before-after` `dual-subs` `hook-lab` |
-| YouTube explainer (5) | `essay-mode` `whiteboard-host` `chapter-pro` `highlighter-study` `tutorial-steps` |
+| Talking-head reel (28) | `glow-cutout`† `poster-pop`†* `glass-ribbon`† `neon-marquee`* `grid-stage`†* `halo-cut` `depth-type`* `split-proof` `neon-orbit`* `paper-cut` `chaos-stack` `bold-bounce` `minimal-mono` `frame-studio` `vhs-tape` `y2k-chrome`* `news-desk` `doc-real` `cinematic-phone` `sticker-pop` `terminal-tech` `comic-panel` `swiss-poster`* `soft-gradient` `countdown-list` `before-after` `dual-subs` `hook-lab` |
+| YouTube explainer (6) | `editorial-cards` `essay-mode` `whiteboard-host` `chapter-pro` `highlighter-study` `tutorial-steps` |
 | Explainer (1) | `data-story` |
 | Podcast / repurposing (3) | `clip-miner` `pod-frame` `quote-card-reel` |
 | Product / app promo (8) | `device-fly` `kinetic-launch` `ugc-ad-kit` `logo-sting` `testimonial-card` `event-promo` `product-spotlight` `loop-ambient` |
 
-`*` = text sits behind the speaker (needs the person matte). The full list with one-line looks is in [`docs/catalog.md`](docs/catalog.md).
+`*` = text sits behind the speaker, `†` = background blurred or replaced around the speaker (both need the person matte). The full list with one-line looks is in [`docs/catalog.md`](docs/catalog.md).
 
 ## What the engine does
 

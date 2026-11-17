@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.1.0 (2026-11-17)
+
+### Added
+
+- 6 skins: `glow-cutout`, `poster-pop`, `glass-ribbon`, `editorial-cards`, `neon-marquee`, `grid-stage` (46 skins in total).
+- `render.py`: `speaker.backdrop` (`blur` / `hide`) shows a blurred copy of the shot or only the HTML backgrounds around the person cut-out; `speaker.glow` adds a rim glow; `personScale` / `personDrop` resize or lower the cut-out with a faded top edge; `speaker.layouts` moves the footage between tilted, rounded cards over time.
+- `make_plan.py`: a headline or key-word template can be a list (a group of elements with the same timing); `auto.headlines.layouts` cycles card layouts per sentence; every sentence gets its headline (falls back to the longest word).
+
+### Fixed
+
+- Indic scripts: key-word matching (engine.js) and word scoring (make_plan.py) no longer strip vowel signs (Unicode category M), so Hindi/Haryanvi key words and headlines work. The Devanagari danda and a comma followed by a pause end a phrase.
+- Back-to-back snap zooms no longer add their face offsets twice.
+- Headlines hand over 0.08 s before the next sentence instead of overlapping (which dropped every other one).
+
 ## v2.0.0 (2026-11-17)
 
 v2 turns the pack from 40 caption styles into a complete editor. Genre skills now decide how a video is cut. The 40 styles become skins that decide how it looks. The core gains the tools and the editorial judgement both depend on.

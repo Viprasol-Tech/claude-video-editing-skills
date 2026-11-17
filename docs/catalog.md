@@ -16,14 +16,14 @@ This catalogue replaces the old "500 moves" list. Every item is tagged by what t
 
 | section | Ready | Upgrade | Heavy | rows |
 | --- | --- | --- | --- | --- |
-| 1. Skills (42 genre + 5 utility + 40 skins) | 87 | 0 | 0 | 87 |
+| 1. Skills (42 genre + 5 utility + 46 skins) | 93 | 0 | 0 | 93 |
 | 2. Transitions | 43 | 11 | 1 | 55 |
 | 3. Effects | 62 | 24 | 12 | 98 |
 | 4. Text, title and caption animations | 98 | 11 | 1 | 110 |
 | 5. Colour (tools + 51 looks in 45 rows) | 62 | 10 | 0 | 72 |
 | 6. Sound moves | 44 | 15 | 7 | 66 |
 | 7. Delivery presets and extras | 32 | 3 | 0 | 35 |
-| **Total** | **428** | **74** | **21** | **523** |
+| **Total** | **434** | **74** | **21** | **529** |
 
 Rows group close variants: one transition row can hold several `xfade` names (58 in total), one SFX row several of the 49 kinds.
 Some skills are Ready with a stated gap (for example `localise-dub` has no lip-sync); the gap is tagged in the sections below.
@@ -94,9 +94,9 @@ How: ask Claude to use the skill, or run `run.py INPUT --style SKIN --genre NAME
 | `editor-handoff` | Ready | EDL / FCPXML / OTIO, ProRes 4444 overlays, mix WAV | `export_edl.py`; timelines carry the cut only |
 | `versions-review` | Ready | v001, v002 never overwritten, A/B sheets, notes rounds | `render.py --frames` per version |
 
-### 1c. Style skins (40)
+### 1c. Style skins (46)
 
-All are Ready. How: `--style SKILLS/<skin>` (a folder with `theme.json` + `theme.css`). `*` = text behind the speaker (uses the matte).
+All are Ready. How: `--style SKILLS/<skin>` (a folder with `theme.json` + `theme.css`). `*` = text behind the speaker (uses the matte). `†` = background replaced or blurred around the person cut-out (uses the matte).
 
 | skin | category | format | look |
 | --- | --- | --- | --- |
@@ -123,6 +123,12 @@ All are Ready. How: `--style SKILLS/<skin>` (a folder with `theme.json` + `theme
 | `before-after` | Talking-head reel | 9:16 | wipe slider reveals the after over the before |
 | `dual-subs` | Talking-head reel | 9:16 | original word-by-word on top, translated line below |
 | `hook-lab` | Talking-head reel | 9:16 | freeze-flash, snap zoom, red circle, "wait for it" in the first 3 s |
+| `glow-cutout`† | Talking-head reel | 9:16 | you cut out with a gold rim glow over a blurred copy of your shot, gold-accent title, boxed captions |
+| `poster-pop`†* | Talking-head reel | 9:16 | new retro poster backdrop every sentence (stripes, checker, grid, sunburst), slab headline, film grain |
+| `glass-ribbon`† | Talking-head reel | 9:16 | violet scene, glowing ribbon behind and across you, bokeh orbs, glass cards, sans + italic serif captions |
+| `neon-marquee`* | Talking-head reel | 9:16 | giant neon-blue headline scrolling behind the head, caption chips with blue key word, lime labels |
+| `grid-stage`†* | Talking-head reel | 9:16 | black grid stage, spotlight and disc, giant word behind the head, glass pills, chapter title cards |
+| `editorial-cards` | YouTube explainer | 9:16 | paper page, footage in a tilted card that moves each sentence, big word-by-word type, hand-drawn circles |
 | `essay-mode` | YouTube explainer | 16:9 | paper textures, highlighter, serif headings, a card every 8-10 s |
 | `whiteboard-host` | YouTube explainer | 16:9 | speaker panel left, marker notes on a paper board right |
 | `chapter-pro` | YouTube explainer | 16:9 | chapter cards, lower thirds, list cards, end screen |
