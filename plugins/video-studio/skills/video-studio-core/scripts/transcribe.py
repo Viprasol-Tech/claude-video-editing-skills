@@ -68,7 +68,21 @@ except Exception:
     pass
 log(f"loading whisper '{a.model}' on {device}")
 model = WhisperModel(a.model, device=device, compute_type=ctype)
-segments, info = model.transcribe(audio, word_timestamps=True, language=a.language, vad_filter=True,
+
+
+def load_pcm(path):
+    """Decode to 16 kHz mono float32 with FFmpeg. Passing an array instead of a path avoids
+    faster-whisper's PyAV decoder, which breaks whenever the installed PyAV version changes its API."""
+    import subprocess
+    import numpy as np
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if p.returncode != 0:
+        die(f"cannot decode {path}: {p.stderr.decode(errors='ignore')[-400:]}")
+    return np.frombuffer(p.stdout, dtype=np.float32)
+
+
+segments, info = model.transcribe(load_pcm(audio), word_timestamps=True, language=a.language, vad_filter=True,
                                   initial_prompt=a.prompt, condition_on_previous_text=False)
 words, segs = [], []
 for seg in segments:

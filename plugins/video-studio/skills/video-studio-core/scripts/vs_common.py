@@ -19,9 +19,35 @@ def need(binary):
         die(f"'{binary}' not found. Install FFmpeg (https://ffmpeg.org/download.html) and make sure it is on PATH.")
 
 
+_FF_MAJOR = None
+
+
+def ffmpeg_major():
+    """Major version of the ffmpeg on PATH (0 if unknown, e.g. git builds)."""
+    global _FF_MAJOR
+    if _FF_MAJOR is None:
+        try:
+            out = subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, text=True).stdout
+            num = out.split("version", 1)[1].split()[0].lstrip("n")
+            _FF_MAJOR = int(num.split(".")[0]) if num[:1].isdigit() else 0
+        except Exception:
+            _FF_MAJOR = 0
+    return _FF_MAJOR
+
+
+def _compat(cmd):
+    """FFmpeg 7+ reads option values from files with '-/opt file'; FFmpeg 9 removed the old
+    '-filter_complex_script'. Translate so every script works on old and new builds."""
+    if cmd and os.path.basename(cmd[0]).startswith("ffmpeg") and "-filter_complex_script" in cmd:
+        if ffmpeg_major() == 0 or ffmpeg_major() >= 7:
+            cmd = ["-/filter_complex" if c == "-filter_complex_script" else c for c in cmd]
+    return cmd
+
+
 def run(cmd, quiet=True):
     """Run a command list; raise with stderr tail on failure."""
     need(cmd[0])
+    cmd = _compat(cmd)
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if p.returncode != 0 and os.environ.get("VS_DEBUG"): print(" ".join(cmd), p.stderr)
     if p.returncode != 0:
