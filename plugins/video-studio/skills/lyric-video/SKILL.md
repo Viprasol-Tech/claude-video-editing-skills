@@ -51,7 +51,7 @@ ffmpeg -loop 1 -i cover.jpg -i song.wav -r 30 -pix_fmt yuv420p -c:v libx264 -tun
 2. Plan with word timing from the song:
 
 ```bash
-python CORE/scripts/run.py lyr_src.mp4 --style SKILLS/neon-orbit --genre lyric-video --no-cut --no-matte \
+python CORE/scripts/run.py lyr_src.mp4 --style SKILLS/neon-orbit --genre lyric-video --no-cut --no-matte --format 16:9 \
   --model small --prompt "distinct words from the lyrics" --work lyr --stop-after plan
 ```
 
@@ -71,6 +71,8 @@ python CORE/scripts/render.py lyr/plan.json --frames 10,30,60,90
 python CORE/scripts/render.py lyr/plan.json
 python CORE/scripts/finish.py lyr/plan.json --platform youtube
 ```
+
+Always pass `--format` matching the project: run.py and make_plan.py otherwise use the skin's own format (many skins default to 9:16).
 
 ## Refine the plan
 
@@ -95,6 +97,7 @@ python CORE/scripts/qc.py lyr/deliver/final_youtube.mp4 --plan lyr/plan.json --p
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every word matches the approved lyrics (diff your `lines` against the lyric sheet).
 - Sync checked at the first line, each chorus start and the last line (+-0.1 s).
 - Readable on the darkest and brightest background moments; inside safe areas.

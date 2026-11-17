@@ -99,6 +99,7 @@ python CORE/scripts/qc.py edit-reel/deliver/final_reels.mp4 --plan edit-reel/pla
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Hook on screen and spoken by 1.5 s; first word <= 0.3 s; no greeting.
 - `review.md` has no HIGH items; contact sheet: nothing over the face, nothing under the right rail, <= 2 overlays plus captions.
 - Captions match the audio word for word; names and numbers spelled right.

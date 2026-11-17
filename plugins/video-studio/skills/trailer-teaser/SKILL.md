@@ -52,7 +52,7 @@ python CORE/scripts/timeline.py auto footage/ --work tr --mode montage --music m
 #  -> tr/timeline_spec.json: every cut on a beat. Re-order clips into the three acts, insert the dialogue clips
 #     (audio "keep", put them in the music's quiet bars), dip-black between acts, then build:
 python CORE/scripts/timeline.py build tr/timeline_spec.json --work tr --no-transcribe
-python CORE/scripts/make_plan.py --work tr --style SKILLS/kinetic-launch --genre trailer-teaser --beats tr/beats.json
+python CORE/scripts/make_plan.py --work tr --style SKILLS/kinetic-launch --genre trailer-teaser --format 16:9 --beats tr/beats.json
 python CORE/scripts/editor.py review tr/plan.json --genre trailer-teaser --fix
 python CORE/scripts/render.py tr/plan.json --frames 3,15,30,50
 python CORE/scripts/render.py tr/plan.json
@@ -60,6 +60,8 @@ python CORE/scripts/finish.py tr/plan.json --platform youtube
 ```
 
 The montage spec puts the music in the spec (`"music": {"volume": 0.9, "duck": false}`), so the assembled file already carries it. For a trailer with many dialogue lines, set `"duck": true` there so the music dips under the lines. `make_plan.py` needs `words.json`; with `--no-transcribe` and no speech, write `{"words": []}` to `tr/words.json` first if it is missing.
+
+Always pass `--format` matching the project: run.py and make_plan.py otherwise use the skin's own format (many skins default to 9:16).
 
 ## Refine the plan
 
@@ -83,6 +85,7 @@ python CORE/scripts/qc.py tr/deliver/final_youtube.mp4 --plan tr/plan.json --pla
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - No spoilers the user flagged; dialogue lines represent the film honestly.
 - Every card readable (>= 1.5 s, <= 4 words); title on a hit; button after the title.
 - Silence before the drop actually silent; music ends on a resolved bar; no music cut mid-phrase.

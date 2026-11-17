@@ -97,6 +97,7 @@ python CORE/scripts/qc.py ad-h1/deliver/final_tiktok.mp4 --plan ad-h1/plan.json 
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Hook text on screen by 0.5 s and spoken/shown by 1.5 s in every variant; body identical across variants.
 - Real person, real words, real results; disclosure on paid ads; claims approved by the client.
 - Key text and offer inside the safe band of every ratio; product visible at the CTA.

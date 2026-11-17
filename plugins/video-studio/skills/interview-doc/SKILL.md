@@ -59,7 +59,7 @@ Combine the interviews' selects into one radio-edit spec (`doc.json`: concatenat
 
 ```bash
 python CORE/scripts/run.py - --timeline doc.json --style SKILLS/doc-real --genre interview-doc --max-gap 0.9 \
-  --smart-cuts --work doc --stop-after plan
+  --smart-cuts --format 16:9 --work doc --stop-after plan
 python CORE/scripts/story.py outline --work doc --genre interview-doc       # check the arc against the structure
 python CORE/scripts/broll.py --work doc --library broll/ --frequency med --merge doc/plan.json   # covers cuts first
 python CORE/scripts/editor.py review doc/plan.json --genre interview-doc --fix   # uncovered jump cuts, pacing
@@ -69,6 +69,8 @@ python CORE/scripts/finish.py doc/plan.json --platform youtube
 ```
 
 `broll.json` lists `uncovered_joins`: cover each by hand (a `cutaways` entry spanning the cut) or a `speaker.zooms` punch-in (scale >= 1.2) starting at the cut.
+
+Always pass `--format` matching the project: run.py and make_plan.py otherwise use the skin's own format (many skins default to 9:16).
 
 ## Refine the plan
 
@@ -95,6 +97,7 @@ python CORE/scripts/export_edl.py doc --out-dir doc/handoff --title "DOC_TITLE" 
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - No constructed quotes; every reordered answer listed and approved; reactions honest.
 - No uncovered interview jump cut (`review.md` clean); room tone under every audio edit.
 - Names/titles/places triple-checked; captions match the audio.

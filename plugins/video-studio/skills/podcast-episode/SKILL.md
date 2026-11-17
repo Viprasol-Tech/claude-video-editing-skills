@@ -90,6 +90,7 @@ python CORE/scripts/audio_chain.py measure ep/deliver/final_podcast-mp3.mp3 --pl
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - The camera follows the speaker; no shot shorter than 2 s; a wide reset at least every minute of long answers.
 - Both voices at the same perceived level; no clipped laughs; room tone under cuts.
 - Names and roles spelled right; chapters valid and correctly timed.

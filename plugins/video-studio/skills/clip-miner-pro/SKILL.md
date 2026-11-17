@@ -95,6 +95,7 @@ python CORE/scripts/qc.py clip01-edit/deliver/clip01_why-we-fired-our-best-clien
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every clip makes sense to a stranger; starts on a hook sentence, ends on a payoff, no mid-word starts.
 - Face stays in frame after the reframe (scrub the contact sheet at 4-5 points per clip).
 - No constructed quotes; speaker names and titles correct.

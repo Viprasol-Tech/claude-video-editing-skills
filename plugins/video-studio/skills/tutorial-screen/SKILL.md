@@ -104,6 +104,7 @@ python CORE/scripts/qc.py tut/deliver/final_youtube.mp4 --plan tut/plan.json --p
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Watch every step at 1x: could you follow it without pausing? UI text >= ~24 px tall at 1080p when it matters.
 - No secrets anywhere (scrub the contact sheet and the full video; also thumbnails).
 - Results stay on screen >= 1 s after each action; no cursor-lost moments.

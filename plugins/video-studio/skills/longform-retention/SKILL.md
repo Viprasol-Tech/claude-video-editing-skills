@@ -83,6 +83,7 @@ python CORE/scripts/qc.py yt2/deliver/final_youtube.mp4 --plan yt2/plan.json --p
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Title/thumbnail promise visible in the first 60 s; nothing before the hook.
 - Re-engagement beat near 3:00, 6:00 and every ~3 min after; stakes rise.
 - No 5+ s stretch without a visual change (`review.md`); pacing varies.

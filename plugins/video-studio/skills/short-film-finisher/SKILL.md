@@ -47,11 +47,11 @@ Picture is locked; now it has to look and sound finished, and ship in every form
 From a locked single file:
 
 ```bash
-python CORE/scripts/run.py locked_cut.mp4 --style SKILLS/minimal-mono --genre short-film-finisher --no-cut --no-matte \
+python CORE/scripts/run.py locked_cut.mp4 --style SKILLS/minimal-mono --genre short-film-finisher --no-cut --no-matte --format 16:9 \
   --model small --work fin --stop-after plan
 ```
 
-From a `scene-editor` spec: `run.py - --timeline scene.json --style SKILLS/minimal-mono --genre short-film-finisher --no-cut --work fin --stop-after plan`.
+From a `scene-editor` spec: `run.py - --timeline scene.json --style SKILLS/minimal-mono --genre short-film-finisher --no-cut --format 16:9 --work fin --stop-after plan`.
 
 Pick the look on the real footage, check scopes, then render:
 
@@ -65,6 +65,8 @@ python CORE/scripts/color.py qc fin/final.mp4            # legal levels
 ```
 
 Stems: make the dialogue-only and the music+effects mixes by rendering the plan twice with parts removed (see below), or split an existing mix with `python CORE/scripts/stems.py fin/final.mp4 --out fin/stems` (Demucs approximation, needs `pip install demucs`; not a true M&E).
+
+Always pass `--format` matching the project: run.py and make_plan.py otherwise use the skin's own format (many skins default to 9:16).
 
 ## Refine the plan
 
@@ -92,6 +94,7 @@ python CORE/scripts/export_edl.py fin --out-dir fin/handoff --title "FILM_TITLE"
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Watch the whole master once, top to tail, with headphones and on a phone.
 - `color.py qc` legal; scopes show sane blacks/whites; skin consistent across shots of a scene.
 - Dialogue intelligible everywhere; no clicks at edits; room tone continuous; loudness on target.

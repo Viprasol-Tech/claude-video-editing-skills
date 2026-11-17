@@ -47,7 +47,7 @@ Assemble the day in story order (speech regions kept, B-roll-only clips get a 3 
 
 ```bash
 python CORE/scripts/run.py - --clips footage/*.mp4 --auto story --style SKILLS/cinematic-phone --genre vlog \
-  --max-gap 0.4 --smart-cuts --retakes --broll broll/ --model small --work vlog --stop-after plan
+  --max-gap 0.4 --smart-cuts --retakes --broll broll/ --format 16:9 --model small --work vlog --stop-after plan
 python CORE/scripts/story.py outline --work vlog --genre vlog        # pick the cold open from the ranked hooks
 ```
 
@@ -55,7 +55,7 @@ For full control write the spec yourself (`timeline.md`): cold open first, `jcut
 
 ```bash
 python CORE/scripts/run.py - --timeline vlog_spec.json --style SKILLS/cinematic-phone --genre vlog --max-gap 0.4 \
-  --smart-cuts --work vlog --stop-after plan
+  --smart-cuts --format 16:9 --work vlog --stop-after plan
 python CORE/scripts/broll.py --work vlog --library broll/ --frequency med --merge vlog/plan.json
 python CORE/scripts/editor.py review vlog/plan.json --genre vlog --fix
 python CORE/scripts/render.py vlog/plan.json --frames 3,30,90,180
@@ -64,6 +64,8 @@ python CORE/scripts/finish.py vlog/plan.json --platform youtube
 ```
 
 Per-segment music: cut each track to the segment length on bars - `python CORE/scripts/music_fit.py track2.mp3 --duration 74.5 --out vlog/seg2.wav` - and add them as timeline clips' music, or premix them into one bed and use it as the plan `music`.
+
+Always pass `--format` matching the project: run.py and make_plan.py otherwise use the skin's own format (many skins default to 9:16).
 
 ## Refine the plan
 
@@ -86,6 +88,7 @@ python CORE/scripts/qc.py vlog/deliver/final_youtube.mp4 --plan vlog/plan.json -
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Something happens in the first 10 s; the title promise is paid off.
 - Music changes land on bars and never fight speech; ambience under montages; no digital-silence holes.
 - One consistent look across cameras; faces natural.

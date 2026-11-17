@@ -54,6 +54,9 @@ ap.add_argument("--timeline", default=None)
 ap.add_argument("--auto", choices=["montage", "story", "highlights"], default=None)
 ap.add_argument("--music", default=None)
 ap.add_argument("--reframe", default=None, help="e.g. 9:16 - face-follow reframe before prep")
+ap.add_argument("--stabilize", action="store_true", help="prep: vidstab handheld stabilisation")
+ap.add_argument("--denoise", choices=["light", "strong"], default=None, help="prep: video noise reduction")
+ap.add_argument("--deflicker", action="store_true", help="prep: remove light flicker")
 ap.add_argument("--smart-cuts", action="store_true")
 ap.add_argument("--retakes", action="store_true")
 ap.add_argument("--broll", default=None, help="folder of b-roll clips/images")
@@ -104,7 +107,11 @@ elif not a.no_source:
         os.makedirs(a.work, exist_ok=True)
         src_in = os.path.join(a.work, "reframed.mp4")
         step("reframe", ["track.py", "reframe", a.input, "--out", src_in, "--format", a.reframe])
-    step("prep", ["prep.py", src_in, "--work", a.work, "--fps", a.fps])
+    pp = ["prep.py", src_in, "--work", a.work, "--fps", a.fps]
+    if a.stabilize: pp.append("--stabilize")
+    if a.denoise: pp += ["--denoise", a.denoise]
+    if a.deflicker: pp.append("--deflicker")
+    step("prep", pp)
     tr = ["transcribe.py", "--work", a.work, "--model", a.model]
     if a.language: tr += ["--language", a.language]
     if a.prompt: tr += ["--prompt", a.prompt]

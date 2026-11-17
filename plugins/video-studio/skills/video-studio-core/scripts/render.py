@@ -198,6 +198,32 @@ def zoom_expr():
     return "+".join(terms) if len(terms) > 1 else None
 
 
+def _face_at(t):
+    """Primary face centre (normalised source coords) at time t from plan["track"] [{t,x,y,w,h}], if present."""
+    tr = plan.get("track") or []
+    if not tr:
+        return None
+    f = min(tr, key=lambda p: abs(p["t"] - t))
+    return f["x"] + f.get("w", 0) / 2, f["y"] + f.get("h", 0) / 2
+
+
+def zoom_centre_expr():
+    """Punch-ins zoom toward the face (or a zoom's own cx/cy, normalised) instead of the frame centre.
+    Each zoom holds its centre for its whole window; zoompan keeps the crop inside the frame."""
+    xs, ys = ["0.5"], ["0.5"]
+    for z in sp.get("zooms", []):
+        c = (z["cx"], z["cy"]) if "cx" in z and "cy" in z else (_face_at(z["start"]) if z.get("toFace", True) else None)
+        if not c:
+            continue
+        s, e = z["start"] - 0.2, z["end"] + 0.2
+        xs.append(f"{c[0] - 0.5:.4f}*between(it,{s},{e})")
+        ys.append(f"{max(0.0, c[1] - 0.06) - 0.5:.4f}*between(it,{s},{e})")  # a touch above centre: eyes, not chin
+    if len(xs) == 1:
+        return "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+    fx, fy = "+".join(xs), "+".join(ys)
+    return (f"clip(iw*({fx})-iw/zoom/2,0,iw-iw/zoom)", f"clip(ih*({fy})-ih/zoom/2,0,ih-ih/zoom)")
+
+
 def speaker_chain(label_in, label_out, is_mask=False, sw=0, sh=0):
     """zoom -> cover-crop to rect."""
     rx, ry, rw, rh = sp.get("rect", [0, 0, W, H])
@@ -205,7 +231,8 @@ def speaker_chain(label_in, label_out, is_mask=False, sw=0, sh=0):
     f = []
     ze = zoom_expr()
     if ze:
-        f.append(f"zoompan=z='{ze}':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={sw}x{sh}:fps={FPS}")
+        zx, zy = zoom_centre_expr()
+        f.append(f"zoompan=z='{ze}':d=1:x='{zx}':y='{zy}':s={sw}x{sh}:fps={FPS}")
     f.append(f"scale={rw}:{rh}:force_original_aspect_ratio=increase:flags=lanczos")
     f.append(f"crop={rw}:{rh}:(iw-{rw})*{fx}:(ih-{rh})*{fy}")
     if sp.get("mirror"):
@@ -290,6 +317,20 @@ def composite(out_path, single_t=None, still_layers=None):
         graph.append(f"[{ci}:v]trim=start={cw.get('srcStart', 0)}:duration={d},setpts=PTS-STARTPTS+{cw['start']}/TB,"
                      f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},format=yuva420p[cw{k}]")
         graph.append(f"[{cur}][cw{k}]overlay=0:0:enable='between(t,{cw['start']},{cw['end']})':eof_action=pass[cwo{k}]"); cur = f"cwo{k}"
+    # privacy / focus blurs on the picture (not the graphics): plan "blurs": [{x,y,w,h,start,end,strength}]
+    # x,y,w,h in output pixels (top-left box); strength = blur radius (default 24); "pixelate": true for mosaic
+    for k, b in enumerate(plan.get("blurs", [])):
+        s_, e_ = b.get("start", 0), b.get("end", DUR + 1)
+        if single_t is not None and not (s_ <= single_t < e_):
+            continue
+        bx, by = max(0, int(b["x"])), max(0, int(b["y"]))
+        bw, bh = max(8, min(int(b["w"]), W - bx)) // 2 * 2, max(8, min(int(b["h"]), H - by)) // 2 * 2
+        fx = (f"scale=iw/{int(b.get('block', 24))}:-2,scale={bw}:{bh}:flags=neighbor" if b.get("pixelate")
+              else f"boxblur={min(int(b.get('strength', 24)), bw // 2 - 1, bh // 2 - 1)}:2")
+        en = "" if single_t is not None else f":enable='between(t,{s_},{e_})'"
+        graph.append(f"[{cur}]split=2[bb{k}a][bb{k}b]")
+        graph.append(f"[bb{k}b]crop={bw}:{bh}:{bx}:{by},{fx}[bb{k}c]")
+        graph.append(f"[bb{k}a][bb{k}c]overlay={bx}:{by}{en}[bbo{k}]"); cur = f"bbo{k}"
     if "front" in layers:
         fi = add_input(seq("front")); graph.append(f"[{cur}][{fi}:v]overlay=0:0[c4]"); cur = "c4"
     graph.append(f"[{cur}]format=yuv420p[vout]")

@@ -80,6 +80,7 @@ python CORE/scripts/qc.py rev/deliver/final_youtube.mp4 --plan rev/plan.json --p
 
 ## Check before delivering
 
+- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Disclosure on screen in the first minute and in the description whenever money or free product was involved.
 - Every spec, price and model name verified; price dated.
 - B-roll matches the model/colour talked about; product colour accurate on a contact sheet.
