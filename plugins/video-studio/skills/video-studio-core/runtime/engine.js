@@ -449,6 +449,11 @@
     outer.style.width = px(el.w || W * 0.86);
     const line = h("div", "cap-line", outer);
     styleObj(line, el.style);
+    // An active word scaled up (activeScale) grows into its neighbours and the gap visually closes
+    // ("MISTAKESTHAT"). Widen the word gap by the growth of a typical ~4-em word on each side.
+    if (el.activeScale > 1 && !(el.style && (el.style.gap || el.style.columnGap))) {
+      line.style.columnGap = `calc(${getComputedStyle(line).columnGap || "0.26em"} + ${((el.activeScale - 1) * 2.2).toFixed(3)}em)`;
+    }
     let built = -1, spans = [], fills = [], emos = [];
     const fmt = s => {
       let x = s.trim();

@@ -355,6 +355,34 @@ def look_chain(name: str, intensity: float = 1.0, W: int = 1920, H: int = 1080,
     return out
 
 
+# ---------------------------------------------------------------- plan integration
+def grade_on_source(plan: dict) -> bool:
+    """True when the creative grade belongs on the camera footage (render.py) rather than the final
+    composite (finish.py). Pros grade the picture, not the graphics: captions keep their brand colours.
+    Legacy finish.grade moves to the source too unless "finish": {"gradeStage": "final"}."""
+    sp = plan.get("speaker") or {}
+    has_src = bool(plan.get("source")) and sp.get("mode", "full") != "none"
+    return has_src and (plan.get("finish") or {}).get("gradeStage", "source") != "final"
+
+
+def source_chain(plan: dict, src: str, work: str, W: int, H: int) -> str:
+    """Full source-stage chain for render.py: input transform + correction (plan["color"]) + look.
+    Look comes from plan["color"]["look"], else the legacy plan["finish"]["grade"]."""
+    cfg = dict(plan.get("color") or {})
+    fin = plan.get("finish") or {}
+    parts = []
+    if cfg:
+        want_stats = cfg.get("auto", True) or cfg.get("match")
+        stats = analyze(src, 12, work) if want_stats else None
+        if cfg.get("match") == "first":
+            cfg.pop("match")
+        parts.append(correction_chain(stats, cfg, work))
+    if grade_on_source(plan):
+        look = cfg.get("look") or fin.get("grade", "none")
+        parts.append(look_chain(look, float(cfg.get("intensity", 1.0)), W, H, work, float(cfg.get("halation", 0))))
+    return ",".join(p for p in parts if p)
+
+
 # ---------------------------------------------------------------- texture + legal (final output)
 LEGAL = {"strict": (16, 235, 16, 240), "ebu": (14, 241, 16, 240)}  # 8-bit Y and C (EBU R103 -1%..103% luma)
 

@@ -173,6 +173,15 @@ if plan.get("matte") and not use_person and "behind" in layers:
     log("WARNING: matte file missing - 'behind' layer will sit on top of the speaker. Run matte.py.")
 
 
+COLOR_CHAIN = ""
+if mode != "none" and src:
+    import color as COL
+    _si = probe(src)
+    COLOR_CHAIN = COL.source_chain(plan, src, work, _si["width"], _si["height"])
+    if COLOR_CHAIN:
+        log("colour on source: " + (plan.get("color", {}).get("look") or plan.get("finish", {}).get("grade", "correction")))
+
+
 def zoom_expr():
     zs = sp.get("zooms", [])
     push = sp.get("push", 0)
@@ -227,10 +236,12 @@ def composite(out_path, single_t=None, still_layers=None):
         sw, sh = info["width"], info["height"]
         rx, ry, rw, rh = sp.get("rect", [0, 0, W, H])
         n_split = 2 if use_person else 1
+        # colour on the camera footage, before overlays (and identical for the person cut-out)
+        cc = ("," + COLOR_CHAIN) if COLOR_CHAIN else ""
         if n_split == 2:
-            graph.append(f"[{si}:v]setpts=PTS-STARTPTS,split=2[srcA][srcB]")
+            graph.append(f"[{si}:v]setpts=PTS-STARTPTS{cc},split=2[srcA][srcB]")
         else:
-            graph.append(f"[{si}:v]setpts=PTS-STARTPTS[srcA]")
+            graph.append(f"[{si}:v]setpts=PTS-STARTPTS{cc}[srcA]")
         graph.append(speaker_chain("srcA", "spk", sw=sw, sh=sh))
         radius = min(sp.get("radius", 0), min(rw, rh) // 2)
         rmask = None

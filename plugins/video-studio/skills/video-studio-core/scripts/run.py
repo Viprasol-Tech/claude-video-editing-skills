@@ -9,6 +9,18 @@ usage: run.py INPUT --style STYLE_DIR [--work WORKDIR] [--format 9:16] [--model 
                         render.py and finish.py yourself.
   INPUT may be "-" with --no-source for type-only/promo styles that need no speaker video.
   --clip/--image/--image2/--logo pass media to styles that use them (device-fly, product-spotlight...).
+
+v2 (all optional):
+  --genre NAME          editorial preset from genres.json (pacing, cuts, captions, loudness). Style = the skin.
+  --clips A B C         several clips: assembled with timeline.py (story order) instead of a single INPUT ("-")
+  --timeline spec.json  full multi-clip timeline spec (transitions, J/L cuts, speed ramps) -> timeline.py build
+  --auto montage|story|highlights  auto-assemble --clips/INPUT folder (montage cuts on --music beats)
+  --music track.mp3     music for auto montage (beats) and the final mix
+  --reframe 9:16        face-follow reframe the INPUT before prep (track.py)
+  --smart-cuts / --retakes   editor-grade autocut (quietest-point cuts, keep last take)
+  --broll DIR           auto-place B-roll from a folder after the plan is made (broll.py)
+  --platform NAME       loudness/delivery target for finish.py (youtube, tiktok, reels, podcast, broadcast-eu ...)
+  --deliver youtube,reels  extra platform exports with deliver.py after finishing
 """
 import argparse, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +48,18 @@ ap.add_argument("--clip", default=None, help="screen recording / product video f
 ap.add_argument("--image", default=None)
 ap.add_argument("--image2", default=None)
 ap.add_argument("--logo", default=None)
-ap.add_argument("--stop-after", choices=["prep", "transcribe", "cut", "matte", "plan", "render"], default=None)
+ap.add_argument("--genre", default=None)
+ap.add_argument("--clips", nargs="+", default=None)
+ap.add_argument("--timeline", default=None)
+ap.add_argument("--auto", choices=["montage", "story", "highlights"], default=None)
+ap.add_argument("--music", default=None)
+ap.add_argument("--reframe", default=None, help="e.g. 9:16 - face-follow reframe before prep")
+ap.add_argument("--smart-cuts", action="store_true")
+ap.add_argument("--retakes", action="store_true")
+ap.add_argument("--broll", default=None, help="folder of b-roll clips/images")
+ap.add_argument("--platform", default=None)
+ap.add_argument("--deliver", default=None, help="comma list of deliver.py presets")
+ap.add_argument("--stop-after", choices=["timeline", "reframe", "prep", "transcribe", "cut", "matte", "plan", "broll", "render", "finish"], default=None)
 a = ap.parse_args()
 
 
@@ -53,8 +76,34 @@ import json
 theme = json.load(open(os.path.join(a.style, "theme.json")))
 needs_matte = theme.get("matte") and not a.no_matte and not a.no_source
 
-if not a.no_source:
-    step("prep", ["prep.py", a.input, "--work", a.work, "--fps", a.fps])
+multi = a.timeline or a.clips or a.auto
+if multi:
+    # several clips -> one assembled timeline; downstream steps are unchanged
+    if a.timeline:
+        tl = ["timeline.py", "build", a.timeline, "--work", a.work, "--model", a.model]
+    else:
+        files = a.clips or [a.input]
+        tl = ["timeline.py", "auto"] + files + ["--work", a.work, "--mode", a.auto or "story"]
+        if a.format: tl += ["--format", a.format]
+        if a.music: tl += ["--music", a.music]
+        if a.duration: tl += ["--duration", a.duration]
+    step("timeline", tl)
+    if a.auto != "montage":
+        ac = ["autocut.py", "--work", a.work, "--max-gap", a.max_gap]
+        if a.no_cut: ac.append("--keep-all")
+        if a.genre: ac += ["--genre", a.genre]
+        if a.smart_cuts: ac.append("--smart-cuts")
+        if a.retakes: ac.append("--retakes")
+        step("cut", ac)
+    if needs_matte:
+        step("matte", ["matte.py", "--work", a.work, "--backend", a.matte_backend])
+elif not a.no_source:
+    src_in = a.input
+    if a.reframe:
+        os.makedirs(a.work, exist_ok=True)
+        src_in = os.path.join(a.work, "reframed.mp4")
+        step("reframe", ["track.py", "reframe", a.input, "--out", src_in, "--format", a.reframe])
+    step("prep", ["prep.py", src_in, "--work", a.work, "--fps", a.fps])
     tr = ["transcribe.py", "--work", a.work, "--model", a.model]
     if a.language: tr += ["--language", a.language]
     if a.prompt: tr += ["--prompt", a.prompt]
@@ -62,6 +111,9 @@ if not a.no_source:
     ac = ["autocut.py", "--work", a.work, "--max-gap", a.max_gap]
     if a.no_cut: ac.append("--keep-all")
     if a.cut: ac += ["--cut", a.cut]
+    if a.genre: ac += ["--genre", a.genre]
+    if a.smart_cuts: ac.append("--smart-cuts")
+    if a.retakes: ac.append("--retakes")
     step("cut", ac)
     if needs_matte:
         step("matte", ["matte.py", "--work", a.work, "--backend", a.matte_backend])
@@ -74,9 +126,19 @@ if a.cta: mp += ["--cta", a.cta]
 if a.title: mp += ["--title", a.title]
 for k in ("clip", "image", "image2", "logo"):
     if getattr(a, k): mp += ["--" + k, getattr(a, k)]
+if a.genre: mp += ["--genre", a.genre]
 step("plan", mp)
 plan = os.path.join(a.work, "plan.json")
+if a.music and a.auto != "montage":
+    p = json.load(open(plan, encoding="utf-8"))
+    p["music"] = dict(p.get("music") or {}, src=os.path.abspath(a.music))
+    json.dump(p, open(plan, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+if a.broll:
+    step("broll", ["broll.py", "--work", a.work, "--library", a.broll, "--merge", plan])
 step("render", ["render.py", plan])
 fin = ["finish.py", plan]
 if a.formats: fin += ["--formats", a.formats]
+if a.platform: fin += ["--platform", a.platform]
 step("finish", fin)
+if a.deliver:
+    step("deliver", ["deliver.py", plan, "--to", a.deliver])
