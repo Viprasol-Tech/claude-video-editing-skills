@@ -36,3 +36,8 @@ Strings that start with `=` are expressions using `W`, `H` and `DUR` (output wid
 
 Grades: `none warm cool teal-orange punchy film bw vintage faded neon vhs pastel noir` (or `lut` with a .cube file).
 SFX kinds (generated, no files needed): `pop click type ding boom riser whoosh swish camera`.
+
+> **v2:** `finish.grade` accepts every look in `color.md` (52 names: the 13 legacy grades plus 39 LUT looks; graded on the
+> footage, not the graphics) and theme `sfx` kinds accept all 49 sounds in `audio.md`. A theme may also set `"color"`
+> (correction, look, intensity, halation) and `"audio"` blocks; see `color.md` and `audio.md`. Genre presets
+> (`--genre`) fill pacing/caption/loudness defaults the theme leaves out; the theme always wins.
