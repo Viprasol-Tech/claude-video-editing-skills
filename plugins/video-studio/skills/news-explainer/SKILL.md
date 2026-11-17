@@ -10,7 +10,7 @@ The fact first, the source on screen, the context after, and nothing the evidenc
 
 - **Best for:** news updates, market and policy explainers, "what happened and why", research summaries, local news
 - **Inputs:** presenter clip or VO, the sources (links, documents, data), optional B-roll/maps/stills with their licences
-- **Default skin:** `news-desk` (Windows: needs `PYTHONUTF8=1`) · alternatives `data-story`, `essay-mode`, `swiss-poster` (needs `--no-matte` or a matte)
+- **Default skin:** `news-desk` · alternatives `data-story`, `essay-mode`, `swiss-poster` (needs `--no-matte` or a matte)
 - **Formats:** 16:9 master, 9:16 cutdowns
 - **Durations:** 60 s-8 min master; 30-60 s cutdowns
 - **Genre preset:** `--genre news-explainer`
@@ -68,22 +68,20 @@ mis-heard names; "BREAKING" on a non-breaking story.
 ## Make the edit
 
 ```bash
-# Windows + news-desk: run.py reads the skin's theme.json without UTF-8, so set PYTHONUTF8=1 first
-#   PowerShell: $env:PYTHONUTF8 = "1"     bash: export PYTHONUTF8=1
-python CORE/scripts/run.py presenter.mp4 --style SKILLS/news-desk --genre news-explainer --format 16:9 --max-gap 0.4 --smart-cuts --retakes --prompt "ONS, Reserve Bank, Priya Rao" --model base --work nx --stop-after plan
+python CORE/scripts/run.py presenter.mp4 --style SKILLS/news-desk --genre news-explainer --format 16:9 --smart-cuts --retakes --prompt "ONS, Reserve Bank, Priya Rao" --model base --work nx --stop-after plan
 python CORE/scripts/story.py outline --work nx --genre news-explainer    # sentences + the genre beat map
 python CORE/scripts/render.py nx/plan.json --frames 1,4,8,13,15
 python CORE/scripts/render.py nx/plan.json
 python CORE/scripts/finish.py nx/plan.json --platform youtube
 ```
 
-Pass `--max-gap 0.4` explicitly: run.py always sends `--max-gap 0.35` to autocut otherwise. With a B-roll folder
+The genre preset sets the pause cut (0.4 s). With a B-roll folder
 (files named after what they show) add `--broll broll/` and stop with `--stop-after broll` instead of `plan`
 (`--stop-after plan` exits before the B-roll step).
 
 **Reorder so the key fact leads** (when the presenter buried it):
 `python CORE/scripts/story.py reorder --work nx --order "s4,s1-s3,s5-s9" --genre news-explainer --format 16:9`,
-then `python CORE/scripts/run.py - --timeline nx/story_timeline.json --style SKILLS/news-desk --genre news-explainer --format 16:9 --max-gap 0.4 --model base --work nx2 --stop-after plan`.
+then `python CORE/scripts/run.py - --timeline nx/story_timeline.json --style SKILLS/news-desk --genre news-explainer --format 16:9 --model base --work nx2 --stop-after plan`.
 Check `nx/story_flags.md`: whole sentences only.
 
 **No presenter on camera:** record or synthesise the VO (`python CORE/scripts/tts.py --script vo.txt --out vo/voice.wav --words`;
@@ -109,6 +107,7 @@ Replace them:
 - **Colour/sound:** `"color": {"look": "documentary-natural", "intensity": 0.5}`, `"finish": {"grain": 0}`,
   `"audio": {"voice": {"eq": "broadcast", "deess": true}}`, `"music": {"src": "neutral.wav", "under": 24, "duck": "speech-aware"}`.
 - `python CORE/scripts/editor.py review nx/plan.json --genre news-explainer` — its "no hook text in 5 s" note is solved by the headline.
+- **Protect identities:** blur private individuals, minors, plates and documents in footage with `"blurs": [{"x": 300, "y": 220, "w": 220, "h": 260, "start": 18.0, "end": 22.5, "pixelate": true}]` (output pixels, top-left box). It sits under the graphics, so the lower third stays sharp.
 
 ## Deliver
 

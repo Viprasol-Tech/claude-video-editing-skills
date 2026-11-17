@@ -19,7 +19,6 @@ Simple, bright, repeated and safe: a child can follow it and a parent can trust 
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = that folder, `SKILLS` = the skills folder.
 - First run: `python CORE/scripts/check_env.py`.
-- `sticker-pop` crashes `run.py` on Windows (theme.json read without UTF-8): prefix with `PYTHONUTF8=1` (shown below).
 - **Consent:** any child on camera needs a parent's or guardian's written consent; no full names, school, or location
   of a child on screen or in the post text.
 - **COPPA / YouTube:** content aimed at children must be set "made for kids" at upload (the uploader does this; the
@@ -65,7 +64,7 @@ details on screen; manipulative CTAs; spelling mistakes in a learning video.
 ## Make the edit
 
 ```bash
-PYTHONUTF8=1 python CORE/scripts/run.py episode.mp4 --style SKILLS/sticker-pop --genre kids-content --format 16:9 --max-gap 0.3 --smart-cuts --retakes --title "Count to 10!" --work kc --stop-after plan
+python CORE/scripts/run.py episode.mp4 --style SKILLS/sticker-pop --genre kids-content --format 16:9 --smart-cuts --retakes --title "Count to 10!" --work kc --stop-after plan
 python CORE/scripts/render.py kc/plan.json --frames 2,20,60,120,180
 python CORE/scripts/render.py kc/plan.json
 python CORE/scripts/finish.py kc/plan.json --platform youtube
@@ -92,6 +91,7 @@ Short clip: same source, `--format 9:16 --duration 45` in a new work folder.
 - **Colour:** `"color": {"look": "pastel", "intensity": 0.6}`.
 - Remove any `chip` "Subscribe" the skin adds if it pressures children; a plain end card is enough.
 - `python CORE/scripts/editor.py review kc/plan.json --genre kids-content`.
+- **Other children:** a child without consent in the frame gets a blur or the shot goes: `"blurs": [{"x": 1500, "y": 380, "w": 220, "h": 260, "start": 40.0, "end": 44.0}]` (output pixels, top-left box). Also blur school logos and name tags.
 
 ## Deliver
 

@@ -102,6 +102,7 @@ Vertical clips: `python CORE/scripts/track.py reframe song3/source.mp4 --out son
 - **Titles:** `{"type": "lowerthird", "name": "Song Title", "role": "Artist - Venue, 2026", "start": 4, "end": 9}` at the
   start of each song, nothing else on screen. End card: `titlecard` with artist and date.
 - Fix bad switches in the shot list by rebuilding as a timeline spec; extend `--min-shot` (3-4 s) if it feels jumpy.
+- **Angle clean-up (before multicam.py):** audience phone angles: `python CORE/scripts/prep.py cam3.mp4 --work fix/cam3 --stabilize --denoise light` and use `fix/cam3/source.mp4` (same length, so sync holds). Don't `--deflicker` stage lighting: strobes and chases are the show.
 
 ## Deliver
 

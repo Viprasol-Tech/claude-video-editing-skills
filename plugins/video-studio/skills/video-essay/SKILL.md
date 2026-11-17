@@ -18,7 +18,7 @@ An argument told in pictures: VO leads, every visual is evidence, chapters keep 
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre video-essay`.
-- Pass `--max-gap 0.6` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.6 s) and run.py respects it; pass `--max-gap` only to override.
 - **Fair use:** quote clips briefly and comment on them; credit sources on screen; never present someone's claim out of context. Keep a `sources.md`.
 
 ## How a pro cuts this
@@ -46,7 +46,7 @@ An argument told in pictures: VO leads, every visual is evidence, chapters keep 
 With a narration video (on-camera or a VO muxed over a still - see `faceless-explainer` for the TTS route):
 
 ```bash
-python CORE/scripts/run.py narration.mp4 --style SKILLS/essay-mode --genre video-essay --max-gap 0.6 \
+python CORE/scripts/run.py narration.mp4 --style SKILLS/essay-mode --genre video-essay \
   --smart-cuts --retakes --model small --prompt "names, places" --work essay --stop-after plan
 python CORE/scripts/story.py outline --work essay --genre video-essay      # paper edit: topic shifts = chapter candidates
 python CORE/scripts/broll.py --work essay --library archive/ --frequency high --merge essay/plan.json
@@ -80,7 +80,6 @@ python CORE/scripts/qc.py essay/deliver/final_youtube.mp4 --plan essay/plan.json
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every claim on screen has a source; every quote is verbatim and in context.
 - Chapters valid (first at 0:00, >= 3, each >= 10 s) and match the cards.
 - VO intelligible over music everywhere; archive audio levels matched.

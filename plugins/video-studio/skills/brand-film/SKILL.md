@@ -67,11 +67,11 @@ mismatched skin between cameras; music that fights the voice; wrong job title in
 
 ```bash
 # one interview: transcribe, cut, draft plan (brand-film max gap is 0.5 s)
-python CORE/scripts/run.py founder.mp4 --style SKILLS/frame-studio --genre brand-film --format 16:9 --max-gap 0.5 --smart-cuts --retakes --logo logo.png --title "Built for makers" --work bf --stop-after plan
+python CORE/scripts/run.py founder.mp4 --style SKILLS/frame-studio --genre brand-film --format 16:9 --smart-cuts --retakes --logo logo.png --title "Built for makers" --work bf --stop-after plan
 # paper edit: hooks, structure, order
 python CORE/scripts/story.py outline --work bf --genre brand-film
 python CORE/scripts/story.py reorder --work bf --order "s7,s1-s5,s9-s12" --genre brand-film --format 16:9 --out bf/story_timeline.json
-python CORE/scripts/run.py - --timeline bf/story_timeline.json --style SKILLS/frame-studio --genre brand-film --format 16:9 --max-gap 0.5 --music track.wav --broll broll/ --work bf2 --stop-after broll
+python CORE/scripts/run.py - --timeline bf/story_timeline.json --style SKILLS/frame-studio --genre brand-film --format 16:9 --music track.wav --broll broll/ --work bf2 --stop-after broll
 python CORE/scripts/render.py bf2/plan.json --frames 2,15,40,80,120
 python CORE/scripts/render.py bf2/plan.json
 python CORE/scripts/finish.py bf2/plan.json --platform youtube
@@ -95,10 +95,10 @@ with `--duration 30`, `--format 9:16` for the vertical. Rebuild the 30 s around 
 - **Voice:** `"audio": {"platform": "youtube", "voice": {"denoise": "light", "eq": "broadcast", "deess": true}}`.
 - **Logo end card:** `{"type": "image", "image": "{logo}", "start": 112, "end": 118, "in": "fade", "w": 520}` or a
   `titlecard` with the final line; land it on a downbeat.
-- **Numbers:** check every `counter` make_plan added (it can split "$10,000" into `to: 10` with a junk label); fix or delete.
+- **Numbers:** check every `counter` make_plan added (value and label must match what is said); fix or delete.
 - Remove auto `card`/`chip` elements that don't fit a brand film (subscribe chips, list cards).
 - `python CORE/scripts/editor.py review bf2/plan.json --genre brand-film` and fix every uncovered jump cut it lists.
-- Contact sheets don't show `cutaways` (B-roll videos): check B-roll placement in the full render.
+- Check B-roll `cutaways` placement in the `--frames` stills (they show the cutaway on screen).
 
 ## Deliver
 

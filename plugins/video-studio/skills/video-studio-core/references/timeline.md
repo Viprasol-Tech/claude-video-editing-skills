@@ -148,3 +148,11 @@ When no clip carries audio and the narration is laid as the spec's music, add `"
 `"music": {"src": "vo/voice.wav", "volume": 1.0, "voiceover": true}`. A plain music bed is never transcribed.
 `run.py --timeline` skips autocut (the spec already sets every in/out); `autocut.py --keep-all` leaves a timeline's
 `cutlist.json` untouched so `editor.py review` still sees every clip join.
+
+### Cleaning up clips before a spec (stabilise, denoise, deflicker)
+
+`run.py --stabilize / --denoise light|strong / --deflicker` apply to the single-input prep step only. For a
+multi-clip spec, clean just the clips that need it first and point the spec at the result:
+`python CORE/scripts/prep.py shaky.mp4 --work fix/shaky --stabilize --denoise light` -> use `fix/shaky/source.mp4`
+as that clip's `src`. prep also normalises the clip (constant `--fps`, default 30; long side <= 1920), so pass
+`--fps 60` for 60 fps footage you want to keep at 60.

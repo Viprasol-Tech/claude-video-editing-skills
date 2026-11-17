@@ -18,7 +18,7 @@ Vertical episodes that end where the viewer can't stop: recap, conflict, turn, c
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre micro-drama`.
-- Pass `--max-gap 0.6` when you let autocut tighten dialogue; use `--no-cut` on emotional scenes (pauses are acting).
+- The genre preset tightens dialogue pauses to 0.6 s when autocut runs; use `--no-cut` on emotional scenes (pauses are acting).
 - Get the episode breakdown from the script (which scenes/lines belong to which episode) and the series continuity notes (costume, props, time of day).
 
 ## How a pro cuts this
@@ -85,7 +85,6 @@ python CORE/scripts/qc.py ep01/deliver/final_reels.mp4 --plan ep01/plan.json --p
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Each episode opens in conflict within 3 s and ends on an open question in the last 3 s.
 - Continuity across episodes (costume, props, time of day); one look for the series.
 - Subtitles match the dialogue and avoid mouths; names spelled consistently.

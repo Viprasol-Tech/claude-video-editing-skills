@@ -71,7 +71,7 @@ python CORE/scripts/render.py fv/plan.json
 python CORE/scripts/finish.py fv/plan.json --platform reels
 ```
 
-Coach talking to camera: `python CORE/scripts/run.py coach.mp4 --style SKILLS/bold-bounce --genre fitness-video --format 9:16 --max-gap 0.3 --smart-cuts --retakes --music track.wav --broll moves/ --work fv2 --stop-after broll`.
+Coach talking to camera: `python CORE/scripts/run.py coach.mp4 --style SKILLS/bold-bounce --genre fitness-video --format 9:16 --smart-cuts --retakes --music track.wav --broll moves/ --work fv2 --stop-after broll`.
 Follow-along session: `--format 16:9 --no-cut`, one clip per move at real length, timers matched to the plan.
 
 ## Refine the plan
@@ -91,6 +91,7 @@ Follow-along session: `--format 16:9 --no-cut`, one clip per move at real length
   `"music": {"src": "track.wav", "under": 14, "duck": "speech-aware", "fitTo": "beats"}`.
 - **SFX:** `{"t": 9.4, "kind": "countdown-beep", "gain": 0.4}` (3.7 s long: start it 3.7 s before work begins).
 - **Colour:** `"color": {"look": "punchy", "intensity": 0.7}` (yoga: `high-key`).
+- **Footage clean-up (video, before the spec):** handheld follow shots, dim gyms and fluorescent tubes: `python CORE/scripts/prep.py move04.mp4 --work fix/move04 --denoise light --deflicker`, then use `fix/move04/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. Coach talking-head run: add `--deflicker` / `--denoise light` to `run.py` directly.
 
 ## Deliver
 

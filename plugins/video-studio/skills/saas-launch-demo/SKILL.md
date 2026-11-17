@@ -1,6 +1,6 @@
 ---
 name: saas-launch-demo
-description: "SaaS launch and product demo editor for Claude: turns a screen recording plus optional founder voice/face into a 60-180 s launch or demo video (outcome, problem, walkthrough, result, CTA) with readable UI, zoom-ins, callouts, cursor pointers, PII hidden, and a 15 s social cut and GIF loop. Use when the user says 'edit my product demo', 'make a launch video for my app', 'Product Hunt video', 'feature announcement video', 'turn this screen recording into a demo', 'SaaS explainer', or hands over a screen capture of software. Runs on video-studio-core (transcribe, cut, motion graphics, deliver, QC)."
+description: "SaaS launch and product demo editor for Claude: turns a screen recording plus optional founder voice/face into a 60-180 s launch or demo video (outcome, problem, walkthrough, result, CTA) with readable UI, targeted zoom-ins, callouts, cursor pointers, PII blurred, and a 15 s social cut and GIF loop. Use when the user says 'edit my product demo', 'make a launch video for my app', 'Product Hunt video', 'feature announcement video', 'turn this screen recording into a demo', 'SaaS explainer', or hands over a screen capture of software. Runs on video-studio-core (transcribe, cut, motion graphics, deliver, QC)."
 license: MIT
 ---
 
@@ -20,8 +20,8 @@ Get the viewer to the "aha" fast: the outcome first, then the three moves that m
 - Needs **video-studio-core** in the same skills folder. `CORE` = that folder, `SKILLS` = the skills folder.
 - First run: `python CORE/scripts/check_env.py`.
 - Record clean: demo account with fake data, notifications off, 1920x1080 or larger, large UI zoom (125-150%).
-- **PII:** real emails, names, API keys or customer data on screen must be hidden. The engine has no blur tool:
-  cover them with a `shape` (`"kind": "bar"`) or a `card` over the region, or re-record with demo data.
+- **PII:** real emails, names, API keys or customer data on screen must be hidden. Blur them with the plan's
+  `blurs` boxes (see Refine), cover them with a `shape`/`card`, or re-record with demo data.
 - Ask for: product name spelling, the one outcome to promise, the three features to show, CTA and URL, pricing claims.
 
 ## How a pro cuts this
@@ -64,9 +64,9 @@ showing every setting; a feature tour with no outcome; CTA without a URL.
 With voice in the recording (or a face cam with the screen recording as a clip):
 
 ```bash
-python CORE/scripts/run.py demo.mp4 --style SKILLS/tutorial-steps --genre saas-launch-demo --format 16:9 --max-gap 0.4 --smart-cuts --retakes --title "Ship reports in 5 minutes" --cta "Try it free at acme.io" --work sd --stop-after plan
+python CORE/scripts/run.py demo.mp4 --style SKILLS/tutorial-steps --genre saas-launch-demo --format 16:9 --smart-cuts --retakes --title "Ship reports in 5 minutes" --cta "Try it free at acme.io" --work sd --stop-after plan
 # face cam + separate screen recording: the screen becomes clip "main"
-python CORE/scripts/run.py founder.mp4 --style SKILLS/device-fly --genre saas-launch-demo --format 16:9 --max-gap 0.4 --clip screen.mp4 --logo logo.png --work sd2 --stop-after plan
+python CORE/scripts/run.py founder.mp4 --style SKILLS/device-fly --genre saas-launch-demo --format 16:9 --clip screen.mp4 --logo logo.png --work sd2 --stop-after plan
 python CORE/scripts/render.py sd/plan.json --frames 1,6,15,30,50
 python CORE/scripts/render.py sd/plan.json
 python CORE/scripts/finish.py sd/plan.json --platform youtube
@@ -89,17 +89,20 @@ first `run.py` command on `demo_vo.mp4`. Don't put a voice in `"music"`: it woul
 ## Refine the plan
 
 - **Hook (first 2 s):** a `text` element with the outcome ("Reports in 5 minutes, not 5 hours"); show the result screen.
-- **Zoom into UI:** `"speaker": {"zooms": [{"start": 8.2, "end": 11.0, "scale": 1.6}], "focusX": 0.72, "focusY": 0.3}`
-  (when the screen is the speaker video). For a `clip` element use `keys` (`"s": [[0, 1], [0.6, 1.6, "expoOut"]]`).
+- **Zoom into UI:** `"speaker": {"zooms": [{"start": 8.2, "end": 11.0, "scale": 1.6, "cx": 0.72, "cy": 0.3}]}`
+  (when the screen is the speaker video; `cx`/`cy` = the button, 0-1 of the source frame, one per zoom). For a `clip` element use `keys` (`"s": [[0, 1], [0.6, 1.6, "expoOut"]]`).
 - **Pointers and callouts:** `{"type": "callout", "point": [1210, 340], "x": 1500, "y": 180, "title": "One-click export", "start": 12, "end": 15}`,
   `{"type": "pointer", "x": 1210, "y": 340, "kind": "hand", "start": 12, "end": 13.5}`.
 - **Steps:** `{"type": "steps", "steps": [{"label": "Connect", "at": 9}, {"label": "Build", "at": 21}, {"label": "Share", "at": 34}]}`.
 - **Shortcut chips:** `{"type": "chip", "text": "Ctrl + K", "start": 18.4, "end": 20}`; code: `codeblock` with `cps`.
-- **Hide PII:** `{"type": "shape", "kind": "bar", "x": 640, "y": 212, "w": 380, "h": 40, "color": "#1b1f2a", "start": 0, "end": 60, "in": "none"}`.
+- **Hide PII:** `"blurs": [{"x": 640, "y": 212, "w": 380, "h": 40, "start": 0, "end": 60}]` (output pixels, top-left
+  box; `"pixelate": true` for a mosaic; one box per time range when it scrolls or a zoom moves it). It blurs the
+  screen under the graphics. Screen inside a `clip`/device element: blurs don't reach it, so use a solid
+  `{"type": "shape", "kind": "bar", ...}` over it instead.
 - **Device frame:** `{"type": "clip", "clip": "main", "device": "laptop", "motion": "flyIn"}` for the opener.
 - **SFX:** `"sfx": [{"t": 12.1, "kind": "click", "gain": 0.35}, {"t": 15.0, "kind": "success-chime", "gain": 0.4}]`.
 - **Colour:** leave the screen untouched (`"color": {"auto": false}`); face cam only `{"look": "cool-corporate", "intensity": 0.4}`.
-- Check auto `counter`s (make_plan can split "$10,000" into `to: 10` with a junk label).
+- Check auto `counter`s: value and label must match what is said.
 
 ## Deliver
 

@@ -57,20 +57,19 @@ python CORE/scripts/tts.py --script script.txt --out vo/voice.wav --words --mode
  "clips": [{"src": "../visuals/ocean-waves.mp4", "in": 2, "out": 6.1, "audio": "mute"},
            {"src": "../visuals/old-map.jpg", "dur": 3.4},
            {"src": "../visuals/ship-deck.jpg", "dur": 4.0, "transition": {"type": "fade", "dur": 0.3}}],
- "music": {"src": "../vo/voice.wav", "volume": 1.0, "duck": false, "fadeOut": 0.2}}
+ "music": {"src": "../vo/voice.wav", "volume": 1.0, "duck": false, "fadeOut": 0.2, "voiceover": true}}
 ```
 
 Clip durations must add up to the voice length (`words.json` `duration`) **plus** every transition `dur` (a transition overlaps two clips). Images get a slow centre push-in automatically.
 
-3. Assemble, then give the plan the voice's word times. `timeline.py` does not transcribe a soundtrack that only comes from the spec `music`, so copy the TTS words in (they already sit on the timeline clock because the voice starts at 0):
+3. Assemble and plan. `"voiceover": true` in the spec's `music` block makes `timeline.py` transcribe the voice, so `words.json` gets word times for the captions (a plain music bed is never transcribed):
 
 ```bash
-python CORE/scripts/run.py - --timeline fx/spec.json --style SKILLS/essay-mode --genre faceless-explainer --no-cut \
-  --model base --work fx --stop-after cut
-cp vo/words.json fx/words.json
-#   recorded human VO instead of TTS:  python CORE/scripts/transcribe.py --work fx --model small --prompt "names"
-#                                      python CORE/scripts/autocut.py --work fx --keep-all
-python CORE/scripts/make_plan.py --work fx --style SKILLS/essay-mode --genre faceless-explainer
+python CORE/scripts/run.py - --timeline fx/spec.json --style SKILLS/essay-mode --genre faceless-explainer \
+  --model base --work fx --stop-after plan
+#   fallback (no "voiceover" flag, or to keep the exact TTS spelling): run with --stop-after timeline, then
+#   cp vo/words.json fx/words.json   (TTS words already sit on the timeline clock: the voice starts at 0)
+#   python CORE/scripts/make_plan.py --work fx --style SKILLS/essay-mode --genre faceless-explainer
 python CORE/scripts/editor.py review fx/plan.json --genre faceless-explainer --fix
 python CORE/scripts/render.py fx/plan.json --frames 1,5,10,20
 python CORE/scripts/render.py fx/plan.json
@@ -81,7 +80,6 @@ Quick version (one background, B-roll placed by keyword): mux a still with the v
 
 ## Refine the plan
 
-- **Known limit:** `editor.py review` does not count the timeline's image/clip changes as visual changes, so it may report "N s without a visual change" and `--fix` adds zoom punches. Judge from the contact sheet; delete the extra `speaker.zooms` if the visuals already change every 2-4 s.
 - **Title card:** the skin's auto `titlecard` takes the first words of the VO and can cut mid-phrase; rewrite its `title` to the hook (<= 7 words).
 - **Words:** fix any mis-heard word in `plan.words` to the script spelling (keep times).
 - **Hook:** a `headline` 0-2.5 s with the hook question; `"sfx": [{"t": 0, "kind": "impact", "gain": 0.4}]`.
@@ -106,7 +104,6 @@ python CORE/scripts/qc.py fx/deliver/final_youtube.mp4 --plan fx/plan.json --pla
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every sentence has a matching visual; no repeats; no visual left on screen > 6 s without motion.
 - VO natural (rate, pronunciation of names); captions match the script; numbers and dates verified.
 - Music never masks the VO; `qc.py` -14 LUFS / -1 dBTP; no black frames between clips.

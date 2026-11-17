@@ -97,7 +97,6 @@ python CORE/scripts/qc.py sc/final.mp4 --plan sc/plan.json --platform none
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every line's chosen take noted (`takes_used.md`: line, take, why); circled takes respected or the choice explained.
 - No accidental line crossing, no jump cuts between near-identical framings, eyelines match.
 - Room tone under every edit; no audio pops at J/L points.

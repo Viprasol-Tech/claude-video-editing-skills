@@ -64,11 +64,11 @@ cuts; music louder than the customer; a quote stitched from two answers.
 ## Make the edit
 
 ```bash
-python CORE/scripts/run.py customer.mp4 --style SKILLS/testimonial-card --genre testimonial-film --format 16:9 --max-gap 0.5 --smart-cuts --retakes --logo logo.png --work tf --stop-after plan
+python CORE/scripts/run.py customer.mp4 --style SKILLS/testimonial-card --genre testimonial-film --format 16:9 --smart-cuts --retakes --logo logo.png --work tf --stop-after plan
 python CORE/scripts/story.py outline --work tf --genre testimonial-film
 # result hook first, then the story in order; read tf/story_flags.md
 python CORE/scripts/story.py reorder --work tf --order "s14,s2-s13,s15-s18" --genre testimonial-film --format 16:9 --out tf/order.json
-python CORE/scripts/run.py - --timeline tf/order.json --style SKILLS/testimonial-card --genre testimonial-film --format 16:9 --max-gap 0.5 --broll broll/ --music bed.wav --work tf2 --stop-after broll
+python CORE/scripts/run.py - --timeline tf/order.json --style SKILLS/testimonial-card --genre testimonial-film --format 16:9 --broll broll/ --music bed.wav --work tf2 --stop-after broll
 python CORE/scripts/render.py tf2/plan.json --frames 1,10,30,60,85
 python CORE/scripts/render.py tf2/plan.json
 python CORE/scripts/finish.py tf2/plan.json --platform youtube
@@ -84,14 +84,14 @@ Vertical cut: same order spec with `--format 9:16 --duration 30` in a new work f
 - **Hook text (muted viewers):** a `text` element in the first 2.5 s with the result in their words, quoted exactly.
 - **Lower third** at their first line: `{"type": "lowerthird", "name": "Ravi Kumar", "role": "Ops Lead, Acme Foods", "start": 2.8, "end": 7}`.
 - **Result numbers:** `{"type": "counter", "from": 0, "to": 38, "suffix": "%", "label": "fewer late orders", "start": 52.1, "end": 56}`
-  only for numbers the customer says or the client documents. Check make_plan's auto counters (it can split "$10,000").
+  only for numbers the customer says or the client documents. Check make_plan's auto counters against what is said.
 - **Quote card:** `{"type": "quote", "text": "We got our weekends back.", "author": "Ravi Kumar", "role": "Acme Foods"}`, word for word.
 - **Disclosure** (when compensated): `{"type": "chip", "text": "Paid partnership", "start": 0, "end": 4}` or an end card line.
 - **Captions:** `{"type": "captions", "preset": "clean"}`; fix names and product terms in `words` (keep times).
 - **Colour/audio:** `"color": {"look": "documentary-natural", "intensity": 0.5}`,
   `"music": {"src": "bed.wav", "under": 22, "duck": "speech-aware", "fitTo": "beats"}`, `"roomTone": true`.
 - `python CORE/scripts/editor.py review tf2/plan.json --genre testimonial-film`; fix uncovered jump cuts it lists.
-- B-roll videos (`cutaways`) don't appear on contact sheets; verify them in the full render.
+- B-roll videos (`cutaways`) show in the `--frames` stills; check each lands on the right line.
 
 ## Deliver
 

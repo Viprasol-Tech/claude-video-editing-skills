@@ -19,7 +19,7 @@ A day of footage becomes a story with a cold open, a shape and a personality.
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre vlog`.
 - Name or number clips in shooting order (`001.mp4`...). Put pure B-roll in `broll/`, named after what it shows.
-- Pass `--max-gap 0.4` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.4 s) and run.py respects it; pass `--max-gap` only to override.
 
 ## How a pro cuts this
 
@@ -47,14 +47,14 @@ Assemble the day in story order (speech regions kept, B-roll-only clips get a 3 
 
 ```bash
 python CORE/scripts/run.py - --clips footage/*.mp4 --auto story --style SKILLS/cinematic-phone --genre vlog \
-  --max-gap 0.4 --smart-cuts --retakes --broll broll/ --format 16:9 --model small --work vlog --stop-after plan
+  --smart-cuts --retakes --broll broll/ --format 16:9 --model small --work vlog --stop-after plan
 python CORE/scripts/story.py outline --work vlog --genre vlog        # pick the cold open from the ranked hooks
 ```
 
 For full control write the spec yourself (`timeline.md`): cold open first, `jcut`/`lcut` between locations, `transition: "whip"` on location changes, `speedRamp` on travel shots, then:
 
 ```bash
-python CORE/scripts/run.py - --timeline vlog_spec.json --style SKILLS/cinematic-phone --genre vlog --max-gap 0.4 \
+python CORE/scripts/run.py - --timeline vlog_spec.json --style SKILLS/cinematic-phone --genre vlog \
   --smart-cuts --format 16:9 --work vlog --stop-after plan
 python CORE/scripts/broll.py --work vlog --library broll/ --frequency med --merge vlog/plan.json
 python CORE/scripts/editor.py review vlog/plan.json --genre vlog --fix
@@ -75,6 +75,8 @@ Always pass `--format` matching the project: run.py and make_plan.py otherwise u
 - **Sound:** `"sfx"` whooshes 0.4 s before whip cuts; `"roomTone": true`; `"music": {"src": "bed.wav", "under": 22, "duck": "speech-aware"}`.
 - **Look:** `"color": {"look": "portra", "intensity": 0.7}`, `"finish": {"grain": 6, "halation": 0.2}`.
 - **End screen:** keep the last 15 s visually calm (no captions/elements) for YouTube end-screen cards.
+- **Footage clean-up (video, before the spec):** shaky walking or low-light phone clips: `python CORE/scripts/prep.py walk.mp4 --work fix/walk --stabilize --denoise light`, then use `fix/walk/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. Keep deliberate handheld energy. A single-file vlog: add the same flags to `run.py`.
+- **Face-aimed punch-ins:** with `W/track.json` the zooms centre on the face instead of the frame centre: after `run.py ... --stop-after cut` (`--stop-after timeline` for a `--timeline` spec) run `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py` (it copies the track into the plan). Per zoom, `"cx"`/`"cy"` (0-1) aim elsewhere; `"toFace": false` keeps centre.
 
 ## Deliver
 
@@ -88,7 +90,6 @@ python CORE/scripts/qc.py vlog/deliver/final_youtube.mp4 --plan vlog/plan.json -
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Something happens in the first 10 s; the title promise is paid off.
 - Music changes land on bars and never fight speech; ambience under montages; no digital-silence holes.
 - One consistent look across cameras; faces natural.

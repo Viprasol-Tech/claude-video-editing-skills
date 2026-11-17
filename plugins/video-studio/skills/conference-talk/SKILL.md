@@ -10,7 +10,7 @@ The talk as the audience should have seen it: the speaker when they matter, the 
 
 - **Best for:** keynotes, conference sessions, meetups, panels, webinars, lectures, TEDx-style talks
 - **Inputs:** speaker camera (or the event's program feed), the slide recording or slide images, speaker name/title, event logo
-- **Default skin:** `chapter-pro` · alternatives `minimal-mono`, `news-desk` (needs `PYTHONUTF8=1` on Windows), `frame-studio`
+- **Default skin:** `chapter-pro` · alternatives `minimal-mono`, `news-desk`, `frame-studio`
 - **Formats:** 16:9 full session; 16:9 highlight; 9:16 quote clips
 - **Durations:** session 10-60 min as given; highlight 60-90 s; quote clips 20-45 s
 - **Genre preset:** `--genre conference-talk`
@@ -71,7 +71,7 @@ tightening; loud music under speech; missing lower third; a wrong job title; Q&A
 
 ```bash
 # speaker camera + slide recording (available to elements as clip id "main")
-python CORE/scripts/run.py talk.mp4 --style SKILLS/chapter-pro --genre conference-talk --format 16:9 --max-gap 1.2 --clip slides.mp4 --title "Three Mistakes" --model base --work ct --stop-after plan
+python CORE/scripts/run.py talk.mp4 --style SKILLS/chapter-pro --genre conference-talk --format 16:9 --clip slides.mp4 --title "Three Mistakes" --model base --work ct --stop-after plan
 # where do the slides change? (shot list of the slide recording; thumbs to look at)
 python CORE/scripts/scenes.py slides.mp4 --work ct --threshold 0.15 --thumbs --out ct/slides_scenes.json
 python CORE/scripts/story.py outline --work ct --genre conference-talk    # sentences s1..sN, quotable lines for the highlight
@@ -80,7 +80,7 @@ python CORE/scripts/render.py ct/plan.json
 python CORE/scripts/finish.py ct/plan.json --platform youtube
 ```
 
-Pass `--max-gap 1.2` explicitly: run.py always sends its own `--max-gap 0.35` to autocut, which overrides the preset.
+The genre preset keeps pauses up to 1.2 s (a speaker's timing); pass `--max-gap` only to change that.
 For names and jargon add `--prompt "Priya Rao, Kubernetes"`. Long talks: `--model small` (default) is more accurate.
 
 **Separate camera + program feed:** if you have a wide and a close-up with the same audio, `multicam.py` will not help
@@ -88,7 +88,7 @@ For names and jargon add `--prompt "Priya Rao, Kubernetes"`. Long talks: `--mode
 
 **Highlight:** pick sentences from `ct/outline.md`, then
 `python CORE/scripts/story.py reorder --work ct --order "s12,s3-s4,s20" --genre conference-talk --format 16:9` and
-`python CORE/scripts/run.py - --timeline ct/story_timeline.json --style SKILLS/chapter-pro --genre conference-talk --format 16:9 --max-gap 1.2 --model base --work ch --stop-after plan`.
+`python CORE/scripts/run.py - --timeline ct/story_timeline.json --style SKILLS/chapter-pro --genre conference-talk --format 16:9 --model base --work ch --stop-after plan`.
 Read `ct/story_flags.md`: no partial-sentence splices in a talk (it is the speaker's real words).
 
 **Quote clips (9:16):** use clip-miner on the finished talk, or `story.py reorder ... --format 9:16` per quote.
@@ -96,14 +96,13 @@ Read `ct/story_flags.md`: no partial-sentence splices in a talk (it is the speak
 ## Refine the plan
 
 - **Captions:** set the captions element to `{"type": "captions", "preset": "clean", "maxWords": 8}`; fix names in `words`.
-- **Remove auto extras** that don't fit a talk: auto `counter` elements (check them: "$10,000" can come out as a counter
-  to 10 with a junk label), `chip` "Subscribe", list `card`s built from the transcript.
+- **Remove auto extras** that don't fit a talk: auto `counter` elements (check the value and label
+  match what was said), `chip` "Subscribe", list `card`s built from the transcript.
 - **Title card:** `{"type": "titlecard", "kicker": "VIDEO STUDIO CONF 2026", "title": "Three Mistakes", "subtitle": "Priya Rao, Founder", "start": 0, "end": 3}`.
 - **Lower third:** `{"type": "lowerthird", "name": "Priya Rao", "role": "Founder, Studio Notes", "start": 3.2, "end": 8, "in": "maskUp", "out": "fade"}`.
 - **Full-screen slide insert** (speaker audio continues):
   `"cutaways": [{"src": "C:/talks/slides.mp4", "start": 6.0, "end": 10.5, "srcStart": 42.0}]` with `srcStart` = the
-  slide's time in the slide recording (from `slides_scenes.json`). Contact sheets (`--frames`) do **not** show cutaways:
-  check them in the full render.
+  slide's time in the slide recording (from `slides_scenes.json`). Check the insert lands on the right slide in the `--frames` stills.
 - **Picture-in-picture slide:** `{"type": "clip", "clip": "main", "clipOffset": 42.0, "start": 12, "end": 16.5, "x": 1530, "y": 640, "w": 640, "h": 360, "in": "fade", "out": "fade"}`.
   Keep it off the face (look at the sheet). Slide images instead of a recording: `{"type": "image", "image": "slide07.png", ...}`.
 - **Chapters:** `"chapters": [{"start": 0, "title": "Intro"}, {"start": 95, "title": "Mistake 1"}, ...]` (first at 0, >= 3, each >= 10 s).
@@ -119,6 +118,7 @@ Read `ct/story_flags.md`: no partial-sentence splices in a talk (it is the speak
 ```bash
 python CORE/scripts/deliver.py ct/plan.json --to youtube,podcast-mp3 --out-dir ct/deliver --burn no
 python CORE/scripts/qc.py ct/deliver/final_youtube.mp4 --plan ct/plan.json --platform youtube --strict
+python CORE/scripts/qc.py ct/deliver/final_podcast-mp3.mp3 --platform podcast
 ```
 
 Upload `captions.srt`/`.vtt` as sidecars (YouTube, LMS, Vimeo) and paste `chapters.txt` into the description. For an

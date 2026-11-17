@@ -123,6 +123,7 @@ with `--mode story`, long holds and dip-to-black between events.
   the family approved.
 - Freeze or slow the varmala / sindoor moment in the spec: `"speedRamp": [{"at": 12.0, "rate": 0.5, "ramp": 0.4}]`.
 - `python CORE/scripts/editor.py review ev-sangeet/plan.json --genre wedding-india`.
+- **Footage clean-up (video, before the spec):** handheld baraat shots, dark sangeet halls and LED-lit stages: `python CORE/scripts/prep.py baraat03.mp4 --work fix/baraat03 --stabilize --denoise light`, then use `fix/baraat03/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. `--deflicker` under tube/LED lights that pulse on camera.
 
 ## Deliver
 

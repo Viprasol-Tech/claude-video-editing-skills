@@ -18,7 +18,7 @@ A 8-20 minute YouTube video edited so the retention graph stays flat: promise ea
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre longform-retention`.
-- Pass `--max-gap 0.45` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.45 s) and run.py respects it; pass `--max-gap` only to override.
 - Ask for the **title and thumbnail**. The first 60 s must deliver that promise. Match intensity to the topic: the fast style can hurt calm educational content (use `video-essay` or `tutorial-screen` there).
 
 ## How a pro cuts this
@@ -48,11 +48,11 @@ A 8-20 minute YouTube video edited so the retention graph stays flat: promise ea
 
 ```bash
 python CORE/scripts/run.py - --clips footage/*.mp4 --auto story --style SKILLS/chapter-pro --genre longform-retention \
-  --max-gap 0.45 --smart-cuts --retakes --broll broll/ --model small --work yt --stop-after plan
+  --smart-cuts --retakes --broll broll/ --model small --work yt --stop-after plan
 python CORE/scripts/story.py outline --work yt --genre longform-retention    # hooks + beat map vs structure
 python CORE/scripts/story.py reorder --work yt --order "s88-s90,s1-s87,s91-s140" --genre longform-retention --format 16:9
 python CORE/scripts/run.py - --timeline yt/story_timeline.json --style SKILLS/chapter-pro --genre longform-retention \
-  --max-gap 0.45 --smart-cuts --work yt2 --stop-after plan
+  --smart-cuts --work yt2 --stop-after plan
 python CORE/scripts/editor.py review yt2/plan.json --genre longform-retention --fix   # retention score, interrupts
 python CORE/scripts/render.py yt2/plan.json --frames 5,60,180,360
 python CORE/scripts/render.py yt2/plan.json
@@ -70,6 +70,7 @@ Read `story_flags.md` after a reorder; reorder only whole sentences for a cold o
 - **End:** delete anything after the payoff except 5-20 s of end-screen space; no "thanks for watching" over it.
 - **Sound:** `"music": {"src": "act1.wav", "under": 20, "duck": "speech-aware", "fitTo": "beats"}`, music premixed per section if it changes; `"roomTone": true`.
 - **Look:** `"color": {"look": "punchy", "intensity": 0.6}`.
+- **Face-aimed punch-ins:** with `W/track.json` the zooms centre on the face instead of the frame centre: after `run.py ... --stop-after cut` (`--stop-after timeline` for a `--timeline` spec) run `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py` (it copies the track into the plan). Per zoom, `"cx"`/`"cy"` (0-1) aim elsewhere; `"toFace": false` keeps centre.
 
 ## Deliver
 
@@ -83,7 +84,6 @@ python CORE/scripts/qc.py yt2/deliver/final_youtube.mp4 --plan yt2/plan.json --p
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Title/thumbnail promise visible in the first 60 s; nothing before the hook.
 - Re-engagement beat near 3:00, 6:00 and every ~3 min after; stakes rise.
 - No 5+ s stretch without a visual change (`review.md`); pacing varies.

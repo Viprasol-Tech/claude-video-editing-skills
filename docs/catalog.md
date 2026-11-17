@@ -18,17 +18,17 @@ This catalogue replaces the old "500 moves" list. Every item is tagged by what t
 | --- | --- | --- | --- | --- |
 | 1. Skills (42 genre + 5 utility + 40 skins) | 87 | 0 | 0 | 87 |
 | 2. Transitions | 43 | 11 | 1 | 55 |
-| 3. Effects | 57 | 28 | 12 | 97 |
+| 3. Effects | 62 | 24 | 12 | 98 |
 | 4. Text, title and caption animations | 98 | 11 | 1 | 110 |
 | 5. Colour (tools + 51 looks in 45 rows) | 62 | 10 | 0 | 72 |
 | 6. Sound moves | 44 | 15 | 7 | 66 |
 | 7. Delivery presets and extras | 32 | 3 | 0 | 35 |
-| **Total** | **423** | **78** | **21** | **522** |
+| **Total** | **428** | **74** | **21** | **523** |
 
 Rows group close variants: one transition row can hold several `xfade` names (58 in total), one SFX row several of the 49 kinds.
 Some skills are Ready with a stated gap (for example `localise-dub` has no lip-sync); the gap is tagged in the sections below.
 
-Corrections to the old catalogue: it listed 373 items as Ready. Several of those are not implemented and are tagged Upgrade here. These include background blur and desaturate, subject outline and glow, stabilise, denoise and deflicker, chroma despill, echo trails and edge or duotone looks. Crash zoom with motion blur, face-targeted punch-ins, the smash cut level contrast, music drop-outs, tracking-out titles, wave text, neon flicker and Lottie are also Upgrade.
+Corrections to the old catalogue: it listed 373 items as Ready. Several of those are not implemented and are tagged Upgrade here. These include background blur and desaturate, subject outline and glow, chroma despill, echo trails and edge or duotone looks. Crash zoom with motion blur, the smash cut level contrast, music drop-outs, tracking-out titles, wave text, neon flicker and Lottie are also Upgrade. Stabilise, denoise, deflicker, region blur/pixelate and face-targeted punch-ins have since been built and are tagged Ready.
 
 ---
 
@@ -64,7 +64,7 @@ How: ask Claude to use the skill, or run `run.py INPUT --style SKIN --genre NAME
 | `ugc-ad-matrix` | Ready | hook variants x body x CTA | |
 | `brand-film` | Ready | mission film + cutdowns | |
 | `testimonial-film` | Ready | real-customer case-study film | real customers and real words only |
-| `saas-launch-demo` | Ready | screen-recording launch/demo with callouts | PII blur is not automatic (see Effects) |
+| `saas-launch-demo` | Ready | screen-recording launch/demo with callouts | PII blur is fixed boxes you place (plan `blurs`), not tracked |
 | `wedding-highlight` | Ready | 3-5 min highlight, teaser, ceremony cut | |
 | `wedding-india` | Ready | per-event highlight, reels, teaser, long film | |
 | `event-recap` | Ready | 60-120 s beat-cut recap + 9:16 | |
@@ -154,7 +154,7 @@ assembly time (`timeline.py`, spec `transition`). Overlay transitions are painte
 | --- | --- | --- |
 | Hard cut | Ready | default between clips (spec `transition: "cut"`); `autocut.py` joins |
 | Jump cut | Ready | `autocut.py` (pauses, fillers, retakes); `--smart-cuts` cuts in the quietest gap |
-| Punch-in cut | Ready | plan `speaker.zooms: [{start, end, scale: 1.15, snap: true}]` (centred, not face-targeted) |
+| Punch-in cut | Ready | plan `speaker.zooms: [{start, end, scale: 1.15, snap: true}]` (aims at the face when the plan has `track`) |
 | Punch-out cut | Ready | end a `speaker.zooms` window on the cut so the next shot returns to 1.0 |
 | J-cut | Ready | spec `jcut: 0.4`; single clip: `autocut.py --jcut N` (frames, at sentence joins) |
 | L-cut | Ready | spec `lcut: 0.3` |
@@ -234,7 +234,7 @@ The frame is fully covered at `at`. These paint over a hard cut; they do not ble
 | Slow push-in | Ready | plan `speaker.push: 0.04` |
 | Snap zoom | Ready | `speaker.zooms` with `snap: true` + `sfx` `whoosh-short` |
 | Crash zoom with motion blur | Upgrade | needs a `tmix` / blur pass on fast zooms |
-| Face-targeted punch-in | Upgrade | zooms are frame-centred (or `focusX/focusY` for the whole video); needs the face box from `track.json` |
+| Face-targeted punch-in | Ready | plan `speaker.zooms` centre on the primary face from plan `track` (`track.py analyze W/cut.mp4 --work W`, then `make_plan.py`); per zoom `cx`/`cy` (normalised source coords) aim anywhere; `toFace: false` keeps frame centre |
 | Reframe crop point | Ready | plan `speaker.focusX`, `speaker.focusY` |
 | Mirror | Ready | plan `speaker.mirror: true` |
 | Speaker in a panel | Ready | plan `speaker.mode: "panel"`, `rect`, `radius` |
@@ -249,7 +249,7 @@ The frame is fully covered at `at`. These paint over a hard cut; they do not ble
 | Camera shake on graphics | Ready | element `shake: {amp, freq, rot, decay, seed}` |
 | Camera shake / handheld drift on footage | Upgrade | needs a seeded `crop` offset on the speaker chain |
 | Gate weave (whole frame) | Ready | plan `finish.weave: 2` |
-| Stabilise | Upgrade | needs a `vidstabdetect` / `vidstabtransform` prep flag |
+| Stabilise | Ready | `prep.py --stabilize` / `run.py --stabilize` (two-pass vidstab, crops ~6%; `deshake` fallback) |
 | Magnifier zoom-to-detail | Upgrade | needs a masked crop-and-scale copy |
 | Dolly zoom (fake vertigo) | Upgrade | needs opposite scaling of matte and background |
 | Rack focus / fake shallow depth | Heavy | Video Depth Anything Small (Apache-2.0) or Large (non-commercial); GPU |
@@ -312,11 +312,12 @@ The frame is fully covered at `at`. These paint over a hard cut; they do not ble
 | Before / after wipe | Ready | element `compare` (`before`, `after`, `wipeDelay`, `wipeDur`) |
 | Background blur / desaturate | Upgrade | needs a matte-driven blur or desaturate of the speaker background |
 | Subject outline / glow | Upgrade | needs an edge pass on the matte |
-| Tracked face blur (privacy, PII) | Upgrade | needs a per-box blur driven by `track.json` |
+| Privacy blur / pixelate (fixed region) | Ready | plan `blurs: [{x, y, w, h, start, end, strength, pixelate, block}]` (output pixels, top-left box; under the graphics) |
+| Tracked face blur (privacy, PII) | Upgrade | fixed boxes work (plan `blurs`); a box that follows `track.json` is not built |
 | Tracked pixelate / censor | Upgrade | needs object tracking |
 | Static logo removal | Upgrade | needs a `delogo` field |
-| Video denoise | Upgrade | needs an `hqdn3d` / `nlmeans` prep flag |
-| Deflicker | Upgrade | needs a `deflicker` prep flag |
+| Video denoise | Ready | `prep.py --denoise light\|strong` / `run.py --denoise light\|strong` (`hqdn3d`) |
+| Deflicker | Ready | `prep.py --deflicker` / `run.py --deflicker` (`deflicker`, 5-frame window) |
 | Screen replacement | Upgrade | needs homography tracking |
 | Clone (same person twice) | Upgrade | needs a split-screen matte for locked-off shots |
 | Beauty / skin smoothing | Upgrade | needs a face-mesh skin mask |

@@ -85,7 +85,6 @@ python CORE/scripts/qc.py tr/deliver/final_youtube.mp4 --plan tr/plan.json --pla
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - No spoilers the user flagged; dialogue lines represent the film honestly.
 - Every card readable (>= 1.5 s, <= 4 words); title on a hit; button after the title.
 - Silence before the drop actually silent; music ends on a resolved bar; no music cut mid-phrase.

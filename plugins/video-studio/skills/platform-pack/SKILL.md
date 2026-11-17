@@ -58,7 +58,7 @@ python CORE/scripts/qc.py W/deliver/final_tiktok.mp4 --plan W/plan.json --platfo
 > overlay positions, so it reports false FAILs (`resolution_vs_plan`, `safe_zone_vertical`, `max_overlays_at_once`).
 > For files whose aspect differs from the plan, run `qc.py FILE --platform NAME` without `--plan`, and check overlays on a still.
 
-Run `qc.py` once per file with that file's platform. From a plain video instead of a plan:
+Run `qc.py` once per file with that file's platform (audio files too: `qc.py final_podcast-mp3.mp3 --platform podcast`). From a plain video instead of a plan:
 `python CORE/scripts/deliver.py final.mp4 --to reels,tiktok --words W/words.json --out-dir out`.
 
 ### Reframing (aspect change)

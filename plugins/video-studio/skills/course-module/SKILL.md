@@ -64,7 +64,7 @@ captions too fast; every module with a different look; missing transcript.
 ## Make the edit
 
 ```bash
-python CORE/scripts/run.py lesson03.mp4 --style SKILLS/whiteboard-host --genre course-module --format 16:9 --max-gap 0.5 --smart-cuts --retakes --prompt "Kubernetes, kubectl, YAML" --title "Lesson 3: Deployments" --work m03 --stop-after plan
+python CORE/scripts/run.py lesson03.mp4 --style SKILLS/whiteboard-host --genre course-module --format 16:9 --smart-cuts --retakes --prompt "Kubernetes, kubectl, YAML" --title "Lesson 3: Deployments" --work m03 --stop-after plan
 python CORE/scripts/story.py outline --work m03 --genre course-module    # topic shifts -> split long recordings
 python CORE/scripts/render.py m03/plan.json --frames 2,30,90,180,280
 python CORE/scripts/render.py m03/plan.json

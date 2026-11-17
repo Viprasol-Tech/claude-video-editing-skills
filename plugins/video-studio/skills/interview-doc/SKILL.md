@@ -18,7 +18,7 @@ Real people, their real words, shaped into a story that is honest and moving.
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre interview-doc`.
-- Pass `--max-gap 0.9` to `run.py` (its own default 0.35 would strip the person's natural rhythm).
+- The `--genre` preset sets autocut's pause cut (0.9 s) and run.py respects it; pass `--max-gap` only to override.
 - **Ethics (non-negotiable):** no Frankenbites - never splice words from different sentences into a statement the person did not make. Reordering whole answers is allowed only when the meaning stays true; flag every such move to the user. Reaction shots must not change what someone meant. Release forms for everyone on camera.
 
 ## How a pro cuts this
@@ -58,7 +58,7 @@ python CORE/scripts/selects.py --work int_maria --apply --input maria.mp4 --form
 Combine the interviews' selects into one radio-edit spec (`doc.json`: concatenate the `clips` of each `selects_spec.json` in story order; add `jcut`/`lcut` 0.3-0.8 s between speakers), then:
 
 ```bash
-python CORE/scripts/run.py - --timeline doc.json --style SKILLS/doc-real --genre interview-doc --max-gap 0.9 \
+python CORE/scripts/run.py - --timeline doc.json --style SKILLS/doc-real --genre interview-doc \
   --smart-cuts --format 16:9 --work doc --stop-after plan
 python CORE/scripts/story.py outline --work doc --genre interview-doc       # check the arc against the structure
 python CORE/scripts/broll.py --work doc --library broll/ --frequency med --merge doc/plan.json   # covers cuts first
@@ -82,6 +82,8 @@ Always pass `--format` matching the project: run.py and make_plan.py otherwise u
 - **Audio:** `"audio": {"voice": {"denoise": "light", "eq": "warm", "deess": true}}, "roomTone": true`, `"music": {"src": "score.wav", "under": 28, "duck": "speech-aware"}`.
 - **Look:** `"color": {"look": "documentary-natural", "intensity": 0.5, "match": "hero_frame.png"}`.
 - **Captions:** `{"type": "captions", "preset": "clean", "cpsMax": 17}` or none (sidecar only).
+- **Footage clean-up:** dim interviews: `--denoise light` (video noise; the voice has its own `audio.voice.denoise`), e.g. `python CORE/scripts/prep.py int01.mp4 --work fix/int01 --denoise light` and use `fix/int01/source.mp4` in `doc.json`; observational handheld B-roll: `--stabilize`; fluorescent offices: `--deflicker`.
+- **Privacy:** blur people who did not sign a release, screens, documents and plates with `"blurs": [{"x", "y", "w", "h", "start", "end"}]` (output pixels, top-left box; `"pixelate": true` for a mosaic).
 
 ## Deliver
 
@@ -97,7 +99,6 @@ python CORE/scripts/export_edl.py doc --out-dir doc/handoff --title "DOC_TITLE" 
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - No constructed quotes; every reordered answer listed and approved; reactions honest.
 - No uncovered interview jump cut (`review.md` clean); room tone under every audio edit.
 - Names/titles/places triple-checked; captions match the audio.

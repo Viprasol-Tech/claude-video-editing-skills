@@ -22,7 +22,6 @@ Make them hungry in the first second, then make the recipe impossible to get wro
 - Ask for: the exact ingredient list with quantities and units, oven temperature and times, allergens, the dish name.
   Quantities, temperatures and allergens on screen are checked against that list, never guessed from the audio.
 - Sponsored ingredient or brand: add a disclosure (`chip` "Paid partnership") and say it in the caption text.
-- `sticker-pop` crashes `run.py` on Windows (theme.json read without UTF-8): prefix the command with `PYTHONUTF8=1`.
 
 ## How a pro cuts this
 
@@ -74,7 +73,7 @@ python CORE/scripts/render.py rv/plan.json
 python CORE/scripts/finish.py rv/plan.json --platform reels
 ```
 
-Talking-head recipe (voice explains): `python CORE/scripts/run.py cook.mp4 --style SKILLS/tutorial-steps --genre recipe-video --format 9:16 --max-gap 0.3 --smart-cuts --retakes --broll steps/ --work rv2 --stop-after broll`
+Talking-head recipe (voice explains): `python CORE/scripts/run.py cook.mp4 --style SKILLS/tutorial-steps --genre recipe-video --format 9:16 --smart-cuts --retakes --broll steps/ --work rv2 --stop-after broll`
 (name step clips after what they show: `garlic-chopping.mp4`). Long-form: same footage, `--format 16:9`, a calmer
 `--max-gap 0.45`, and keep the full method.
 
@@ -91,8 +90,9 @@ Talking-head recipe (voice explains): `python CORE/scripts/run.py cook.mp4 --sty
   `"music": {"src": "bed.wav", "under": 18, "duck": "speech-aware", "fitTo": "beats", "endButton": true}`.
 - **SFX:** `"sfx": [{"t": 4.1, "kind": "pop", "gain": 0.35}, {"t": 30.2, "kind": "ding", "gain": 0.4}]`.
 - **Colour:** `"color": {"look": "food-pop", "intensity": 0.7}`, `"finish": {"sharpen": 0.3}`.
-- Check auto `counter`s (make_plan can split "$10,000" into `to: 10`); delete ones that make no sense.
-- B-roll `cutaways` don't show on contact sheets: confirm placement in the full render.
+- Check every auto `counter` (value and label match what is said); delete ones that make no sense.
+- Check B-roll `cutaways` land on the right step in the `--frames` stills.
+- **Footage clean-up (video, before the spec):** handheld close-ups and kitchens under LED/fluorescent light: `python CORE/scripts/prep.py step03.mp4 --work fix/step03 --stabilize --deflicker`, then use `fix/step03/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. An overhead rig is already stable. Talking-head run: the same flags work on `run.py`.
 
 ## Deliver
 

@@ -19,7 +19,7 @@ Mines a long recording for clips that stand on their own, then cuts each one lik
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre clip-miner-pro`.
 - One work folder for the long file (`mine/`) and one per clip (`clip01/`, `clip02/`...).
-- Pass `--max-gap 0.35` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.35 s) and run.py respects it; pass `--max-gap` only to override.
 - Ask for the episode/show name and where the full episode lives (for the CTA).
 
 ## How a pro cuts this
@@ -62,7 +62,7 @@ Cut each pick (source times S-E from the transcript):
 ```bash
 python CORE/scripts/prep.py episode.mp4 --work clip01 --start 754.2 --end 801.9
 python CORE/scripts/run.py clip01/source.mp4 --reframe 9:16 --style SKILLS/clip-miner --genre clip-miner-pro \
-  --max-gap 0.35 --smart-cuts --retakes --cta "Full episode: SHOW TITLE" --work clip01-edit --stop-after plan
+  --smart-cuts --retakes --cta "Full episode: SHOW TITLE" --work clip01-edit --stop-after plan
 python CORE/scripts/editor.py review clip01-edit/plan.json --genre clip-miner-pro --fix
 python CORE/scripts/render.py clip01-edit/plan.json --frames 0.5,3,10,20
 python CORE/scripts/render.py clip01-edit/plan.json
@@ -81,6 +81,7 @@ For a two-person shot that should stay stacked: `python CORE/scripts/track.py re
 - **CTA:** the `--cta` text sits in the last 2 s; keep it, or use a `chip` "Full episode on YouTube".
 - **Sound:** `"audio": {"voice": {"denoise": "light", "eq": "clear"}}`; music only if the show uses it.
 - Name each work folder and output after its hook: `"outputFile": "clip01_why-we-fired-our-best-client.mp4"`.
+- **Face-aimed punch-ins:** with `W/track.json` the zooms centre on the face instead of the frame centre: after `run.py ... --stop-after cut` (`--stop-after timeline` for a `--timeline` spec) run `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py` (it copies the track into the plan). Per zoom, `"cx"`/`"cy"` (0-1) aim elsewhere; `"toFace": false` keeps centre.
 
 ## Deliver
 
@@ -95,7 +96,6 @@ python CORE/scripts/qc.py clip01-edit/deliver/clip01_why-we-fired-our-best-clien
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every clip makes sense to a stranger; starts on a hook sentence, ends on a payoff, no mid-word starts.
 - Face stays in frame after the reframe (scrub the contact sheet at 4-5 points per clip).
 - No constructed quotes; speaker names and titles correct.

@@ -18,8 +18,8 @@ One question, many voices, grouped so the range of opinion becomes a story.
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre vox-pop`.
-- Pass `--max-gap 0.5` to `run.py` (its own default otherwise overrides the genre's).
-- **Ethics:** an answer appears as an answer to the question shown (not to a different one); never trim "I don't think it's bad" into "it's bad"; respect people who asked not to be shown; blur bystanders' faces only if needed (manual, see `tutorial-screen` for the box blur).
+- The `--genre` preset sets autocut's pause cut (0.5 s) and run.py respects it; pass `--max-gap` only to override.
+- **Ethics:** an answer appears as an answer to the question shown (not to a different one); never trim "I don't think it's bad" into "it's bad"; respect people who asked not to be shown; blur bystanders' faces only if needed (plan `blurs`, see Refine).
 
 ## How a pro cuts this
 
@@ -46,7 +46,7 @@ One question, many voices, grouped so the range of opinion becomes a story.
 Transcribe every answer, then write the order:
 
 ```bash
-python CORE/scripts/run.py - --clips vox/*.mp4 --auto story --style SKILLS/news-desk --genre vox-pop --max-gap 0.5 \
+python CORE/scripts/run.py - --clips vox/*.mp4 --auto story --style SKILLS/news-desk --genre vox-pop \
   --smart-cuts --format 16:9 --model small --work vp --stop-after timeline
 #  read vp/timeline.json + vp/words.json: which answer is which person, what they said
 ```
@@ -54,7 +54,7 @@ python CORE/scripts/run.py - --clips vox/*.mp4 --auto story --style SKILLS/news-
 `--auto story` keeps the speech regions of each clip in file order. Re-order by intent in a hand spec (`vp_spec.json`, times = each clip's source seconds, `jcut: 0.2` on each answer), then:
 
 ```bash
-python CORE/scripts/run.py - --timeline vp_spec.json --style SKILLS/news-desk --genre vox-pop --max-gap 0.5 \
+python CORE/scripts/run.py - --timeline vp_spec.json --style SKILLS/news-desk --genre vox-pop \
   --smart-cuts --format 16:9 --work vp2 --stop-after plan
 python CORE/scripts/editor.py review vp2/plan.json --genre vox-pop --fix
 python CORE/scripts/render.py vp2/plan.json --frames 1,8,20,40
@@ -73,6 +73,7 @@ Always pass `--format` matching the project: run.py and make_plan.py otherwise u
 - **Captions:** `{"type": "captions", "preset": "boxed", "cpsMax": 17}`; fix mis-heard words in `plan.words` (street audio).
 - **Sound:** `"audio": {"voice": {"denoise": true, "eq": "clear"}}`, `"roomTone": true`, `"music": {"src": "bed.mp3", "under": 26, "duck": "speech-aware"}`.
 - **Look:** `"color": {"look": "documentary-natural", "intensity": 0.4}`.
+- **Bystanders:** blur faces of people in the background who did not consent with `"blurs": [{"x": 1420, "y": 260, "w": 200, "h": 240, "start": 31.0, "end": 34.5}]` (output pixels, top-left box; `"pixelate": true` for a mosaic; one box per answer). Check each in the `--frames` stills.
 
 ## Deliver
 
@@ -86,7 +87,6 @@ python CORE/scripts/qc.py vp2/deliver/final_reels.mp4 --plan vp2/plan.json --pla
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every answer answers the question shown and keeps its meaning.
 - Names and places correct; nobody shown who declined.
 - Captions on every answer, synced; audio intelligible over street noise.

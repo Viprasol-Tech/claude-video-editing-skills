@@ -18,7 +18,7 @@ A full episode that looks like a studio show and sounds like a podcast: right ca
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre podcast-episode`.
-- Pass `--max-gap 0.9` to `run.py` (its own default 0.35 would make the conversation breathless).
+- The `--genre` preset sets autocut's pause cut (0.9 s) and run.py respects it; pass `--max-gap` only to override.
 - **Sync:** `multicam.py` expects every camera to start at the same instant with that person's own mic. If they don't, trim each to the clap first (`prep.py camA.mp4 --work a --start 3.42` and use `a/source.mp4`).
 - Ask for names, roles and spellings; ask whether anything said must come out (legal, private).
 
@@ -53,7 +53,7 @@ python CORE/scripts/multicam.py camA.mp4 camB.mp4 --wide wide.mp4 --min-shot 2.0
 One wide camera: skip that step and use the wide file as input. Then:
 
 ```bash
-python CORE/scripts/run.py pod/multicam.mp4 --style SKILLS/pod-frame --genre podcast-episode --max-gap 0.9 \
+python CORE/scripts/run.py pod/multicam.mp4 --style SKILLS/pod-frame --genre podcast-episode \
   --smart-cuts --title "SHOW NAME" --model small --prompt "Guest Name, Company" --work ep --stop-after plan
 python CORE/scripts/story.py outline --work ep --genre podcast-episode     # quotable lines -> teaser, topic shifts -> chapters
 python CORE/scripts/editor.py review ep/plan.json --genre podcast-episode --fix
@@ -74,13 +74,14 @@ Cold-open teaser: pick 2-3 lines from `outline.md`, then `story.py reorder --wor
 - **Music:** intro/outro only - `"music": {"src": "theme.mp3", "volume": 0.5, "duck": true, "fadeOut": 2}` covers the start; for the outro either premix or end the episode on the theme's sting.
 - **Look:** `"color": {"look": "portra", "intensity": 0.5}` (set the same `match` reference for every camera if they differ: `"match": "hero_frame.png"`).
 - **Captions:** keep or remove the skin's caption element for the 16:9 (the SRT sidecar is always produced by deliver.py).
+- **Face-aimed punch-ins:** with `W/track.json` the zooms centre on the face instead of the frame centre: after `run.py ... --stop-after cut` (`--stop-after timeline` for a `--timeline` spec) run `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py` (it copies the track into the plan). Per zoom, `"cx"`/`"cy"` (0-1) aim elsewhere; `"toFace": false` keeps centre.
 
 ## Deliver
 
 ```bash
 python CORE/scripts/deliver.py ep/plan.json --to youtube,podcast-mp3,audio-wav --out-dir ep/deliver
 python CORE/scripts/qc.py ep/deliver/final_youtube.mp4 --plan ep/plan.json --platform youtube
-python CORE/scripts/audio_chain.py measure ep/deliver/final_podcast-mp3.mp3 --platform podcast   # qc.py expects video on audio-only files
+python CORE/scripts/qc.py ep/deliver/final_podcast-mp3.mp3 --platform podcast        # audio-only checks: loudness, peak, duration
 ```
 
 - `podcast-mp3` is -16 LUFS / -1 dBTP; `audio-wav` keeps the mix untouched for the host's own mastering.
@@ -90,7 +91,6 @@ python CORE/scripts/audio_chain.py measure ep/deliver/final_podcast-mp3.mp3 --pl
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - The camera follows the speaker; no shot shorter than 2 s; a wide reset at least every minute of long answers.
 - Both voices at the same perceived level; no clipped laughs; room tone under cuts.
 - Names and roles spelled right; chapters valid and correctly timed.

@@ -102,6 +102,7 @@ from tighter sideline clips with `--format 9:16`.
 - **Music:** `"music": {"src": "track.wav", "under": 10, "duck": false, "fitTo": "beats", "endButton": true}`.
 - **SFX:** `{"t": 14.2, "kind": "impact", "gain": 0.4}` on freezes (or none). **Colour:** `"color": {"look": "punchy", "intensity": 0.7}`.
 - `python CORE/scripts/editor.py review sh/plan.json --genre sports-highlight`.
+- **Footage clean-up (video, before the spec):** phone footage from the stands and floodlit night games: `python CORE/scripts/prep.py game1.mp4 --work fix/g1 --stabilize --deflicker --fps 60` (keep `--fps` at the source rate; prep defaults to 30), then use `fix/g1/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. Feed `fix/g1/source.mp4` to `timeline.py auto` instead of the raw file. `--denoise light` for dark indoor venues.
 
 ## Deliver
 

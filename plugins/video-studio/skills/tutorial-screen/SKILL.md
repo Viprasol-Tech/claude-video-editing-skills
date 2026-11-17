@@ -1,6 +1,6 @@
 ---
 name: tutorial-screen
-description: "Screen-tutorial editor for software how-tos, coding walkthroughs and course demos: promise, prerequisites, numbered steps, recap; cuts the waiting, typing and loading, zooms in on the cursor area, adds step chips, keyboard-shortcut and callout overlays, blurs private data, and delivers a 16:9 video with YouTube chapters and captions. Use when the user says: edit my screen recording, tutorial video, how-to video, coding tutorial, software walkthrough, cut the loading screens, zoom on my cursor, add step numbers, make my Loom look professional. Default skin chapter-pro; any Video Studio skin works."
+description: "Screen-tutorial editor for software how-tos, coding walkthroughs and course demos: promise, prerequisites, numbered steps, recap; cuts the waiting, typing and loading, punches in on the area being clicked, adds step chips, keyboard-shortcut and callout overlays, blurs private data, and delivers a 16:9 video with YouTube chapters and captions. Use when the user says: edit my screen recording, tutorial video, how-to video, coding tutorial, software walkthrough, cut the loading screens, zoom on my cursor, add step numbers, make my Loom look professional. Default skin chapter-pro; any Video Studio skin works."
 license: MIT
 ---
 
@@ -18,7 +18,7 @@ A screen recording a viewer can follow without pausing: no waiting, the right th
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre tutorial-screen`.
-- Pass `--max-gap 0.45` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.45 s) and run.py respects it; pass `--max-gap` only to override.
 - Ask what is private on screen (emails, API keys, customer names, tokens). It must be blurred **before** anything is published.
 
 ## How a pro cuts this
@@ -46,7 +46,7 @@ A screen recording a viewer can follow without pausing: no waiting, the right th
 **A. Narration recorded with the screen (one file):**
 
 ```bash
-python CORE/scripts/run.py screen.mp4 --style SKILLS/chapter-pro --genre tutorial-screen --max-gap 0.45 \
+python CORE/scripts/run.py screen.mp4 --style SKILLS/chapter-pro --genre tutorial-screen \
   --smart-cuts --retakes --no-matte --model small --prompt "product names, commands" --work tut --stop-after plan
 ```
 
@@ -55,7 +55,7 @@ python CORE/scripts/run.py screen.mp4 --style SKILLS/chapter-pro --genre tutoria
 ```bash
 ffmpeg -i screen.mp4 -i face.mp4 -filter_complex "[1:v]scale=360:-2[f];[0:v]scale=1920:-2[s];[s][f]overlay=W-w-40:H-h-40" \
   -map 1:a -c:v libx264 -crf 18 -c:a aac -shortest tut_src.mp4
-python CORE/scripts/run.py tut_src.mp4 --style SKILLS/chapter-pro --genre tutorial-screen --max-gap 0.45 --smart-cuts \
+python CORE/scripts/run.py tut_src.mp4 --style SKILLS/chapter-pro --genre tutorial-screen --smart-cuts \
   --retakes --model small --work tut --stop-after plan
 ```
 
@@ -71,17 +71,14 @@ python CORE/scripts/render.py tut/plan.json
 python CORE/scripts/finish.py tut/plan.json --platform youtube
 ```
 
-**Blur private data** in the source before run.py (box blur over a fixed rectangle w:h:x:y; repeat per area; keep the radius below half the rectangle height or FFmpeg refuses; no drawtext):
-
-```bash
-ffmpeg -i screen.mp4 -filter_complex "[0:v]crop=420:40:880:96,boxblur=8[b];[0:v][b]overlay=880:96" -c:a copy screen_safe.mp4
-```
-
-Moving secrets need a different rectangle per time range (`overlay=...:enable='between(t,12,30)'`). The engine has no tracking blur.
+**Blur private data** with the plan's `blurs` list (box in output pixels, top-left corner; read the position off a
+`--frames` still): `"blurs": [{"x": 880, "y": 96, "w": 420, "h": 40, "start": 0, "end": 95.0}]`, or `"pixelate": true`
+for a mosaic. It blurs the recording under the graphics, so chips and captions stay sharp. A secret that moves (scrolling,
+a zoom) needs one box per time range; the engine has no tracking blur. See `CORE/references/plan-schema.md`.
 
 ## Refine the plan
 
-- **Zoom on the action:** `speaker.focusX`/`focusY` set where a zoom aims for the whole video; per-moment zooms are `speaker.zooms` (`{"start": 42.1, "end": 47.0, "scale": 1.8}`). When different zooms need different areas, put the screen in a `clip` element and animate it with keys: `"keys": {"s": [[0, 1], [0.5, 2.0, "inOut"], [4.5, 2.0], [5, 1, "inOut"]], "tx": [[0, 0], [0.5, -420]], "ty": [[0, 0], [0.5, 260]]}`.
+- **Zoom on the action:** `speaker.focusX`/`focusY` set where a zoom aims for the whole video; per-moment zooms are `speaker.zooms` (`{"start": 42.1, "end": 47.0, "scale": 1.8, "cx": 0.78, "cy": 0.08}`: `cx`/`cy` = the clicked spot, 0-1 of the source frame; the engine does not follow the cursor by itself). When different zooms need different areas, put the screen in a `clip` element and animate it with keys: `"keys": {"s": [[0, 1], [0.5, 2.0, "inOut"], [4.5, 2.0], [5, 1, "inOut"]], "tx": [[0, 0], [0.5, -420]], "ty": [[0, 0], [0.5, 260]]}`.
 - **Step chips:** `{"type": "chip", "text": "Step 2 · Add the API key", "start": 61.0, "end": 140.0, "x": 50, "y": 60, "anchor": "top-left"}` and top-level `"chapters": [{"start": 0, "title": "Result"}, {"start": 61.0, "title": "Add the API key"}]`.
 - **Prerequisites:** `{"type": "checklist", "title": "You need", "items": [{"text": "Node 20", "at": 22.4}, {"text": "A free account", "at": 24.0}]}`.
 - **Shortcuts:** `{"type": "tile", "text": "Ctrl + Shift + P", "start": 80.2, "end": 82.4, "x": 960, "y": 960}`.
@@ -104,7 +101,6 @@ python CORE/scripts/qc.py tut/deliver/final_youtube.mp4 --plan tut/plan.json --p
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Watch every step at 1x: could you follow it without pausing? UI text >= ~24 px tall at 1080p when it matters.
 - No secrets anywhere (scrub the contact sheet and the full video; also thumbnails).
 - Results stay on screen >= 1 s after each action; no cursor-lost moments.

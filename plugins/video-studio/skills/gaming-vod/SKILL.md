@@ -76,7 +76,7 @@ setup and reaction):
 
 ```bash
 python CORE/scripts/prep.py vod.mp4 --work raw03 --start 4512.0 --end 4549.5
-python CORE/scripts/run.py raw03/source.mp4 --style SKILLS/chaos-stack --genre gaming-vod --format 9:16 --max-gap 0.4 --retakes --model base --work clip03 --stop-after plan
+python CORE/scripts/run.py raw03/source.mp4 --style SKILLS/chaos-stack --genre gaming-vod --format 9:16 --retakes --model base --work clip03 --stop-after plan
 python CORE/scripts/render.py clip03/plan.json --frames 1,5,10,18,25
 python CORE/scripts/render.py clip03/plan.json
 python CORE/scripts/finish.py clip03/plan.json --platform tiktok
@@ -86,7 +86,7 @@ The 9:16 plan centre-crops the 16:9 stream; for the usual facecam-over-gameplay 
 element (below). Two people on camera instead: `track.py reframe raw03/source.mp4 --out raw03/stack.mp4 --format 9:16 --layout stack2`
 stacks the two **faces** and you run on `stack.mp4`; it does not know where a facecam box or the game is.
 Best-of 16:9: keep the chosen windows in `gv/timeline_spec.json` and
-`run.py - --timeline gv/timeline_spec.json --style SKILLS/chaos-stack --genre gaming-vod --format 16:9 --max-gap 0.4 --model base --work gvb --stop-after plan`.
+`run.py - --timeline gv/timeline_spec.json --style SKILLS/chaos-stack --genre gaming-vod --format 16:9 --model base --work gvb --stop-after plan`.
 
 ## Refine the plan
 

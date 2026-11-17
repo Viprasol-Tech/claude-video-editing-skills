@@ -20,7 +20,7 @@ Turns one raw talking clip into a short that holds the scroll: hook by 1.5 s, no
 - First time on a machine: `python CORE/scripts/check_env.py` and fix what it prints.
 - Read the preset once: `python CORE/scripts/editor.py genre retention-reel`.
 - Work in a new folder next to the footage (`edit-<name>/`), never inside a skill folder.
-- Always pass `--max-gap 0.3` to `run.py`: run.py sends its own default (0.35) to autocut, which overrides the genre's pause setting.
+- The `--genre` preset sets autocut's pause cut (0.3 s) and run.py respects it; pass `--max-gap` only to override.
 
 ## How a pro cuts this
 
@@ -48,7 +48,7 @@ Turns one raw talking clip into a short that holds the scroll: hook by 1.5 s, no
 ## Make the edit
 
 ```bash
-python CORE/scripts/run.py clip.mp4 --style SKILLS/halo-cut --genre retention-reel --max-gap 0.3 \
+python CORE/scripts/run.py clip.mp4 --style SKILLS/halo-cut --genre retention-reel \
   --smart-cuts --retakes --work edit-reel --stop-after plan
 #   16:9 source? add  --reframe 9:16   (face-follow crop before prep)
 #   B-roll folder?    add  --broll broll/   (files named after what they show)
@@ -61,7 +61,7 @@ If the best hook is not the first sentence, build a cold open and re-run the pla
 python CORE/scripts/story.py reorder --work edit-reel --order "s5,s1-s4,s6-s9" --genre retention-reel --format 9:16
 #  read story_flags.md (Frankenbite / back-reference warnings), then:
 python CORE/scripts/run.py - --timeline edit-reel/story_timeline.json --style SKILLS/halo-cut --genre retention-reel \
-  --max-gap 0.3 --smart-cuts --work edit-reel2 --stop-after plan
+  --smart-cuts --work edit-reel2 --stop-after plan
 ```
 
 Then review, fix and look:
@@ -85,6 +85,7 @@ python CORE/scripts/finish.py edit-reel/plan.json --platform reels --formats 4:5
 - **Sound:** `"sfx": [{"t": 0.0, "kind": "impact", "gain": 0.5}, {"t": 12.3, "kind": "whoosh-short", "gain": 0.45}]`; `"music": {"src": "bed.mp3", "under": 22, "duck": "speech-aware", "fitTo": "beats"}`.
 - **Colour:** `"color": {"look": "clean-commercial", "intensity": 0.7}`; `"finish": {"grain": 4, "sharpen": 0.3}`.
 - Re-run `editor.py review ... --fix` after every change and look at the frames again.
+- **Face-aimed punch-ins:** with `W/track.json` the zooms centre on the face instead of the frame centre: after `run.py ... --stop-after cut` (`--stop-after timeline` for a `--timeline` spec) run `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py` (it copies the track into the plan). Per zoom, `"cx"`/`"cy"` (0-1) aim elsewhere; `"toFace": false` keeps centre.
 
 ## Deliver
 
@@ -99,7 +100,6 @@ python CORE/scripts/qc.py edit-reel/deliver/final_reels.mp4 --plan edit-reel/pla
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Hook on screen and spoken by 1.5 s; first word <= 0.3 s; no greeting.
 - `review.md` has no HIGH items; contact sheet: nothing over the face, nothing under the right rail, <= 2 overlays plus captions.
 - Captions match the audio word for word; names and numbers spelled right.

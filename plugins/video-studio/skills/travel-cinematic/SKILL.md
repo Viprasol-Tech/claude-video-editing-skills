@@ -98,6 +98,7 @@ Ambience: give an ambience clip `"audio": "keep", "volume": 0.3` instead of mute
   (stylised dot-grid map, not real map data: say so).
 - **SFX:** `{"t": 31.6, "kind": "whoosh", "gain": 0.4}` about 0.4 s before each whip; nothing else.
 - `python CORE/scripts/editor.py review tc/plan.json --genre travel-cinematic`.
+- **Footage clean-up (video, before the spec):** shaky handheld shots (gimbal and drone footage is already stable), night streets: `python CORE/scripts/prep.py street.mp4 --work fix/street --stabilize --denoise light`, then use `fix/street/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. Use `--deflicker` on timelapses and hyperlapses that pump.
 
 ## Deliver
 

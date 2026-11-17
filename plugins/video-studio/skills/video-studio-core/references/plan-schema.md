@@ -22,12 +22,13 @@ All times are in seconds on the **cut** timeline (after autocut). All positions 
     "focusX": 0.5, "focusY": 0.35,  // which part of a wider source to keep when cropping
     "push": 0.04,                   // slow push-in over the whole video (0.04 = +4%)
     "mirror": false,
-    "zooms": [{"start": 2.1, "end": 3.4, "scale": 1.15, "snap": false}]
+    "zooms": [{"start": 2.1, "end": 3.4, "scale": 1.15, "snap": false}]   // + optional "cx","cy" / "toFace"
   },
   "theme": {"vars": {"--c-accent": "#FFE14D"}, "fontsUrl": "https://fonts.googleapis.com/...", "cssFiles": ["/abs/theme.css"], "css": ""},
   "words": [{"w": "Hello", "start": 0.2, "end": 0.5}],
   "clips": [{"id": "rec", "src": "screen.mp4", "start": 0, "end": 12, "loop": false}],
   "cutaways": [{"src": "broll.mp4", "start": 4.0, "end": 6.5, "srcStart": 10}],
+  "blurs": [{"x": 880, "y": 96, "w": 420, "h": 40, "start": 0, "end": 12.5}],
   "elements": [ ... ],
   "sfx": [{"t": 1.2, "kind": "pop", "gain": 0.5}],
   "music": {"src": "music.mp3", "volume": 0.12, "duck": true, "start": 0, "fadeOut": 1.5},
@@ -43,7 +44,39 @@ All times are in seconds on the **cut** timeline (after autocut). All positions 
 3. `behind`: HTML drawn **behind the person** (needs `matte`)
 4. person cut-out (from `matte`)
 5. `cutaways`: full-frame B-roll video
-6. `front`: captions, cards, everything on top
+6. `blurs`: privacy blur / pixelate boxes on the picture (under the graphics)
+7. `front`: captions, cards, everything on top
+
+## Punch-in zooms (`speaker.zooms`)
+
+Each zoom: `start`, `end`, `scale`, `snap` (hard cut in/out instead of an ease). Where it zooms toward:
+
+- `"cx"`, `"cy"` (normalised source coords, 0-1, top-left origin): zoom toward that point (a UI button, a product).
+- otherwise, when the plan has `track` (from `W/track.json`, copied in by `make_plan.py`), it centres on the primary
+  face at the zoom's start (aimed a touch above centre, at the eyes). Make the track for the speaker video first:
+  `python CORE/scripts/track.py analyze W/cut.mp4 --work W`, then `make_plan.py`.
+- `"toFace": false` keeps that zoom on the frame centre. No track and no `cx`/`cy`: frame centre.
+
+The centre holds for the whole zoom window; the crop always stays inside the frame. There is no automatic cursor or
+object tracking: for a screen recording, set `cx`/`cy` per zoom to the spot being clicked.
+
+## Privacy blurs (`blurs`)
+
+`"blurs": [{"x", "y", "w", "h", "start", "end", "strength"?, "pixelate"?, "block"?}]` blurs the **picture** (speaker
+video, cutaways) under the graphics, so captions and cards stay sharp. Use it for number plates, faces of bystanders
+who did not consent, screens, addresses, emails, API keys and customer data in screen recordings.
+
+| field | meaning |
+| --- | --- |
+| `x`, `y`, `w`, `h` | box in **output** pixels, `x`,`y` = top-left corner (not the element anchor) |
+| `start`, `end` | seconds on the cut timeline (default: the whole video) |
+| `strength` | box-blur radius, default 24 (capped to the box size) |
+| `pixelate`, `block` | `true` for a mosaic instead of a blur; `block` = mosaic cell size, default 24 |
+
+Blurs cover the speaker video and `cutaways` only, not `clip`/`image` elements (those are graphics: blur the
+source file or cover them). The box is fixed in output pixels: split it into short boxes when the subject moves
+or a punch-in zoom changes the framing. Check every box in the `--frames`
+stills (stills show blurs and cutaways) and scrub the full render.
 
 ## Shared element fields
 

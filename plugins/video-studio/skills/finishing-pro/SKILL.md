@@ -71,8 +71,8 @@ python CORE/scripts/audio_chain.py measure W/final.mp4 --platform youtube
 python CORE/scripts/color.py qc W/final.mp4
 ```
 
-Contact sheets do not show `cutaways` (B-roll videos): check those frames in `final.mp4`
-(`ffmpeg -ss 8 -i W/final.mp4 -frames:v 1 W/check_8s.png`, then Read it). For another target than the plan's, use
+Contact sheets (`render.py --frames`) show `cutaways` and `blurs`; to check the finished texture and grade, grab a frame
+of `final.mp4` (`ffmpeg -ss 8 -i W/final.mp4 -frames:v 1 W/check_8s.png`, then Read it). For another target than the plan's, use
 `finish.py --lufs -23` or set `audio.lufs`.
 
 ## 4. Deliver

@@ -38,11 +38,11 @@ python CORE/scripts/deliver.py edit-x/plan.json --to reels,tiktok,shorts        
 python CORE/scripts/qc.py edit-x/final.mp4 --plan edit-x/plan.json                     # automated QC report
 ```
 
-`run.py` options (all optional): `--genre`, `--clips A B C` / `--timeline spec.json` / `--auto montage|story|highlights` (multi-clip), `--music`, `--reframe 9:16`, `--smart-cuts`, `--retakes`, `--broll DIR`, `--platform`, `--deliver youtube,reels`, `--format`, `--model`, `--language`, `--stop-after STEP`. See `python CORE/scripts/run.py --help`.
+`run.py` options (all optional): `--genre`, `--clips A B C` / `--timeline spec.json` / `--auto montage|story|highlights` (multi-clip), `--music`, `--reframe 9:16`, `--stabilize`, `--denoise light|strong`, `--deflicker` (prep clean-up), `--smart-cuts`, `--retakes`, `--broll DIR`, `--platform`, `--deliver youtube,reels`, `--format`, `--model`, `--language`, `--stop-after STEP`. See `python CORE/scripts/run.py --help`.
 
 | script | does | reference |
 | --- | --- | --- |
-| `prep.py` / `transcribe.py` | normalise footage; faster-whisper word timestamps (`--model`, `--language`, `--prompt` for names) | |
+| `prep.py` / `transcribe.py` | normalise footage (+ `--stabilize` vidstab, `--denoise light` or `strong`, `--deflicker`); faster-whisper word timestamps (`--model`, `--language`, `--prompt` for names; split tokens like "$10,000" merged) | |
 | `autocut.py` | pauses, fillers (en + hi basics), retakes, quietest-point cuts, breaths, `--jcut`, `--genre` | craft.md |
 | `selects.py` / `story.py` | selects + paper edit from long footage; outline, hook candidates, reorder (Frankenbite flags) | craft.md |
 | `timeline.py` | multi-clip build/auto: 58 transitions, J/L cuts, speed ramps, freeze, reverse, Ken Burns, beat montage | timeline.md |
@@ -50,7 +50,7 @@ python CORE/scripts/qc.py edit-x/final.mp4 --plan edit-x/plan.json              
 | `broll.py` | place B-roll from a folder on matching words, covering jump cuts first | timeline.md |
 | `make_plan.py` | draft plan from transcript + skin theme + genre preset (+ beats, face track, peaks) | plan-schema.md |
 | `editor.py` | Rule-of-Six cut scoring, pacing, retention, overlay discipline, captions cps; `--fix` | craft.md |
-| `render.py` | HTML overlays (deterministic) + composite; colour applied to the footage first | motion.md, color.md |
+| `render.py` | HTML overlays (deterministic) + composite; colour on the footage first; `blurs` (privacy), face-aimed `speaker.zooms` | plan-schema.md, motion.md, color.md |
 | `color.py` / `luts.py` | analysis, auto correction, log→709, 52 looks (skin-protected), matching, scopes, QC | color.md |
 | `finish.py` | texture (grain, halation, letterbox...), legal levels, dialogue chain, SFX, music duck, loudness | audio.md |
 | `audio_chain.py` / `beats.py` / `music_fit.py` / `tts.py` / `stems.py` | mix graph, 49 synthesized SFX, beats, music cut to length, offline voice-over, stems | audio.md |
@@ -88,3 +88,6 @@ Genre presets: `python CORE/scripts/editor.py genres` (pacing, cut rules, captio
 - Slow: `--model base`, `render.py --workers 4`; minterpolate slow-mo is slow by nature.
 - Captions wrong: fix words in `words.json` (keep times) and re-run `make_plan.py`.
 - No face found (reframe): small/profile faces are missed; use `--mode locked` or a manual crop.
+- Shaky, noisy or flickering footage: `run.py ... --stabilize --denoise light --deflicker` (single input). For
+  multi-clip specs, clean a clip first with `prep.py clip.mp4 --work fix/c1 --stabilize` and use `fix/c1/source.mp4`.
+- Podcast audio file: `qc.py final_podcast-mp3.mp3 --platform podcast` (audio-only checks).

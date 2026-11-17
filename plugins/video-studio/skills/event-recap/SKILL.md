@@ -102,6 +102,8 @@ Speaker clips: run `clip-miner` style edits on each talk recording.
 - **End:** `{"type": "titlecard", "title": "See you in 2027", "subtitle": "devsummit.example", ...}` in the last 3-4 s.
 - **Colour:** `"color": {"look": "punchy", "intensity": 0.7}` (or `clean-commercial`, `music-video-neon`).
 - `python CORE/scripts/editor.py review er/plan.json --genre event-recap`.
+- **Footage clean-up (video, before the spec):** handheld crowd shots, dark venues, LED walls and fluorescent halls: `python CORE/scripts/prep.py hall02.mp4 --work fix/hall02 --denoise light --deflicker`, then use `fix/hall02/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. `--stabilize` for walking shots.
+- **Opt-outs and children:** blur faces of anyone who opted out with `"blurs": [{"x": 1210, "y": 300, "w": 180, "h": 220, "start": 14.2, "end": 16.0}]` (output pixels, top-left box; see `CORE/references/plan-schema.md`), or drop the shot.
 
 ## Deliver
 

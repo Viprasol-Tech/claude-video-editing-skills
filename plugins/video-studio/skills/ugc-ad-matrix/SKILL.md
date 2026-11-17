@@ -18,7 +18,7 @@ One body, many hooks: an editor's test matrix of native-looking UGC ads, every r
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre ugc-ad-matrix`.
-- Pass `--max-gap 0.25` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.25 s) and run.py respects it; pass `--max-gap` only to override.
 - **Ethics:** the person on camera must be a real customer or a disclosed paid creator. Never present an actor as a customer, never invent ratings or results. Paid content gets an "Ad" / "Paid partnership" label (FTC / ASCI). Ask the user what claims are approved.
 
 ## How a pro cuts this
@@ -46,7 +46,7 @@ One body, many hooks: an editor's test matrix of native-looking UGC ads, every r
 Cut the shared body once and look at it:
 
 ```bash
-python CORE/scripts/run.py body.mp4 --style SKILLS/ugc-ad-kit --genre ugc-ad-matrix --max-gap 0.25 --smart-cuts --retakes \
+python CORE/scripts/run.py body.mp4 --style SKILLS/ugc-ad-kit --genre ugc-ad-matrix --smart-cuts --retakes \
   --work ad-body --stop-after cut
 ```
 
@@ -62,7 +62,7 @@ Write one timeline spec per hook (times in source seconds, from each take's tran
 Then render each variant in its own work folder (same skin, same body times):
 
 ```bash
-python CORE/scripts/run.py - --timeline ad-h1.json --style SKILLS/ugc-ad-kit --genre ugc-ad-matrix --max-gap 0.25 \
+python CORE/scripts/run.py - --timeline ad-h1.json --style SKILLS/ugc-ad-kit --genre ugc-ad-matrix \
   --smart-cuts --work ad-h1 --stop-after plan
 python CORE/scripts/editor.py review ad-h1/plan.json --genre ugc-ad-matrix --fix
 python CORE/scripts/render.py ad-h1/plan.json --frames 0.5,1.5,6,14
@@ -97,7 +97,6 @@ python CORE/scripts/qc.py ad-h1/deliver/final_tiktok.mp4 --plan ad-h1/plan.json 
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Hook text on screen by 0.5 s and spoken/shown by 1.5 s in every variant; body identical across variants.
 - Real person, real words, real results; disclosure on paid ads; claims approved by the client.
 - Key text and offer inside the safe band of every ratio; product visible at the CTA.

@@ -65,11 +65,16 @@ python CORE/scripts/render.py mem/plan.json
 python CORE/scripts/finish.py mem/plan.json --platform youtube
 ```
 
+**Narrated tribute** (a eulogy or a family member's voice as the soundtrack): put the recording in the spec's `music`
+with `"voiceover": true` (`"music": {"src": "../eulogy.wav", "volume": 1.0, "voiceover": true}`) and build without
+`--no-transcribe`: `timeline.py` transcribes it, so `words.json` has word times for gentle captions. Fallback: transcribe
+the recording on its own (`transcribe.py --work vo --audio eulogy.wav`) and copy its words into the plan.
+
 Pass `--format 16:9` to make_plan: otherwise the skin's own format (9:16 for paper-cut) is used even though the timeline is 16:9. Ignore review's "cut scores / mid-thought" lines (there are no words to cut by) and the "uniform shot lengths" note only if you deliberately kept a steady rhythm.
 
 ## Refine the plan
 
-- **Replace the skin's placeholder elements** (e.g. a "Your title here" text) with: `{"type": "titlecard", "kicker": "In loving memory", "title": "Asha Verma", "subtitle": "1941 - 2026", "start": 0, "end": 4.5, "h": 1078, "in": "fade", "out": "fade", "inDur": 0.8, "outDur": 0.8}` (`"h": 1078` works around the opaque-overlay render bug below).
+- **Replace the skin's placeholder elements** (e.g. a "Your title here" text) with: `{"type": "titlecard", "kicker": "In loving memory", "title": "Asha Verma", "subtitle": "1941 - 2026", "start": 0, "end": 4.5, "in": "fade", "out": "fade", "inDur": 0.8, "outDur": 0.8}`.
 - **Era titles (optional):** a quiet `text` "The early years" 3 s at each era start, `in: fade`.
 - **Closing:** `{"type": "text", "text": "Forever in our hearts", "start": END-4, "end": END, "y": 960, "in": "fade", "inDur": 1.0, "style": {"textShadow": "0 2px 12px rgba(0,0,0,.8)"}}` - keep readable over bright photos.
 - **No captions, no SFX, no flashes.** Remove any the skin added.
@@ -90,7 +95,6 @@ python CORE/scripts/qc.py mem/deliver/final_youtube.mp4 --plan mem/plan.json --p
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Every name and date checked three times against the family's written list.
 - Everyone the family named appears; nobody they excluded does; order approved in writing.
 - No cropped heads, no upside-down or low-res stretched scans; black-and-white photos untouched.

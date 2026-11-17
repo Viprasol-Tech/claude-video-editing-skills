@@ -18,7 +18,7 @@ Talking head plus clean product B-roll, structured so the verdict is clear and t
 
 - Needs **video-studio-core** in the same skills folder. `CORE` = `video-studio-core`, `SKILLS` = the folder holding both.
 - First time: `python CORE/scripts/check_env.py`. Preset: `python CORE/scripts/editor.py genre product-review`.
-- Pass `--max-gap 0.45` to `run.py` (its own default otherwise overrides the genre's).
+- The `--genre` preset sets autocut's pause cut (0.45 s) and run.py respects it; pass `--max-gap` only to override.
 - **Ethics:** ask whether the product was paid for, sent free, or sponsored. Any of the last two needs a clear disclosure on screen near the start and in the description. The score and the cons are the reviewer's real opinion: never edit a negative into a positive.
 
 ## How a pro cuts this
@@ -46,7 +46,7 @@ Talking head plus clean product B-roll, structured so the verdict is clear and t
 ## Make the edit
 
 ```bash
-python CORE/scripts/run.py review.mp4 --style SKILLS/chapter-pro --genre product-review --max-gap 0.45 --smart-cuts \
+python CORE/scripts/run.py review.mp4 --style SKILLS/chapter-pro --genre product-review --smart-cuts \
   --retakes --broll broll/ --model small --prompt "Product Name, brand terms" --work rev --stop-after plan
 python CORE/scripts/story.py outline --work rev --genre product-review      # find the verdict line for the tease
 python CORE/scripts/editor.py review rev/plan.json --genre product-review --fix
@@ -80,7 +80,6 @@ python CORE/scripts/qc.py rev/deliver/final_youtube.mp4 --plan rev/plan.json --p
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Disclosure on screen in the first minute and in the description whenever money or free product was involved.
 - Every spec, price and model name verified; price dated.
 - B-roll matches the model/colour talked about; product colour accurate on a contact sheet.

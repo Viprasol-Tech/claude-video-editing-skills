@@ -104,7 +104,6 @@ python CORE/scripts/qc.py mv/deliver/final_youtube.mp4 --plan mv/plan.json --pla
 
 ## Check before delivering
 
-- **Known engine bug:** a fully opaque full-frame overlay (a `titlecard`, or a title card the skin adds itself) blanks the picture near the end of the *full* render while `--frames` stills look fine. Give such cards `"h": 1078` (16:9) or `"h": 1918` (9:16) so their frames keep a transparent edge, and always check `qc.py` for black frames.
 - Lip sync checked at three chorus points (frame-accurate on hard consonants).
 - Cuts land on beats; no section cut uniformly for > 30 s; bridge feels different.
 - Song intact (no clicks at the start/end, ends on the last downbeat), loudness on target.

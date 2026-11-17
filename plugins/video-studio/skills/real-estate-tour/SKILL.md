@@ -85,14 +85,15 @@ which is too busy for a tour):
 ```
 
 ```bash
-python CORE/scripts/run.py - --timeline rt/tour_spec.json --style SKILLS/minimal-mono --genre real-estate-tour --format 16:9 --no-cut --model base --work rt --stop-after plan
+python CORE/scripts/run.py - --timeline rt/tour_spec.json --style SKILLS/minimal-mono --genre real-estate-tour --format 16:9 --model base --work rt --stop-after plan
 python CORE/scripts/render.py rt/plan.json --frames 1,5,8,12,15,19
 python CORE/scripts/render.py rt/plan.json
 python CORE/scripts/finish.py rt/plan.json --platform youtube
 ```
 
-`--no-cut` matters: run.py always passes `--max-gap 0.35` to autocut, which would chop a music-only assembly.
-Photos in the spec get a slow push-in (`"kenburns": false` to stop it). For a tighter music edit run
+A `--timeline` spec sets every in/out point, so autocut is skipped (and this genre's preset has autocut off anyway).
+Photos in the spec get a slow push-in (`"kenburns": false` to stop it). Agent voice-over as the soundtrack: add
+`"voiceover": true` to the spec's `music` block (with the VO as `src`) and timeline.py transcribes it for captions. For a tighter music edit run
 `python CORE/scripts/music_fit.py music.wav --duration 62 --out rt/music_fit.wav` first and use that file in the spec.
 
 **Reel (9:16, 25 s).** Make a second spec with the 5-7 best shots, `"format": "9:16"`, 3-4 s each, and run it into
@@ -113,6 +114,8 @@ or shoot vertical.
   (Plans use paths relative to their folder, so keep the copy next to `plan.json`.)
 - `editor.py review rt/plan.json --genre real-estate-tour` complains about "no hook text" if the first card is late:
   the address card at 0.5 s is the hook.
+- **Footage clean-up (video, before the spec):** handheld walkthroughs and LED/fluorescent interiors: `python CORE/scripts/prep.py kitchen.mp4 --work fix/kitchen --stabilize --deflicker`, then use `fix/kitchen/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it. Gimbal and drone shots need nothing.
+- **Privacy:** blur house numbers, number plates, family photos and documents with `"blurs": [{"x": 1320, "y": 410, "w": 160, "h": 120, "start": 21.0, "end": 24.5}]` (output pixels, top-left box; `"pixelate": true` for a mosaic). One box per shot.
 
 ## Deliver
 

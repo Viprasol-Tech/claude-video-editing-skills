@@ -19,6 +19,10 @@ v2 turns the pack from 40 caption styles into a complete editor. Genre skills no
 - **Sound** (`audio_chain.py`, `beats.py`, `music_fit.py`, `tts.py`, `stems.py`): a dialogue chain, room-tone fill, 49 synthesized SFX, speech-aware ducking, music cut to length on bar lines with an end button, beats and peaks, offline voice-over and optional Demucs stems.
 - **Delivery and QC** (`deliver.py`, `captions.py`, `export_edl.py`, `qc.py`): 23 platform presets with two-pass loudness, face-aware reframe and size budgets. SRT, VTT and TTML to broadcast rules, chapters, thumbnails and a post pack. EDL, FCPXML and OTIO exports, ProRes 4444 overlays, and an automated QC report. BT.709 tagging on every encode.
 - **Pipeline** (`run.py`): `--genre`, `--clips`, `--timeline`, `--auto`, `--music`, `--reframe`, `--smart-cuts`, `--retakes`, `--broll`, `--platform` and `--deliver`, with QC and deliver as pipeline steps.
+- **Footage clean-up** (`prep.py`, `run.py`): `--stabilize` (two-pass vidstab, `deshake` fallback), `--denoise light|strong` (`hqdn3d`) and `--deflicker`.
+- **Privacy blur** (`render.py`): plan `"blurs": [{x, y, w, h, start, end, strength, pixelate, block}]` blurs or pixelates a box of the picture under the graphics (plates, bystanders, screens, PII in screen recordings).
+- **Face-aimed punch-ins** (`render.py`): `speaker.zooms` centre on the face when the plan has `track` (from `track.json` via `make_plan.py`), or on a zoom's own `cx`/`cy`; `"toFace": false` keeps the frame centre.
+- **Voice-over timelines** (`timeline.py`): `"voiceover": true` in a spec's `music` block transcribes it, so photo and faceless edits get caption word times without copying words by hand.
 - `check_env.py` now checks every FFmpeg filter v2 uses and lists the optional add-ons with their licences.
 
 **47 skills**
@@ -44,7 +48,10 @@ v2 turns the pack from 40 caption styles into a complete editor. Genre skills no
 - `lut3d` paths on Windows now escape the drive colon (`C\:/...`). An unescaped path failed.
 - Number tokens that Whisper split (`$10` `,000.`) are re-joined at transcription and in subtitles.
 - The legal-level judgement now follows EBU R103, using the percentage of out-of-range pixels instead of a single stray pixel.
-- Also fixed: the genre's max-gap is respected, `--model` is forwarded to the timeline, cutaways show in contact sheets, and QC skips plan geometry on reframed deliveries. An explicit `deliver.py --words` now overrides the plan words (for SDH captions).
+- A fully opaque overlay frame (a full-screen `titlecard`) no longer turns the rest of the render black: overlay frames are always stored as RGBA.
+- `run.py --timeline` skips autocut (the spec sets every in/out), `autocut.py --keep-all` keeps a timeline's cutlist, and `editor.py review` sees the timeline's joins.
+- `qc.py` works on audio-only files; `--platform podcast` is accepted as an alias of `podcast-mp3`.
+- Also fixed: the genre's max-gap is respected (`run.py --max-gap` now defaults to the preset), `--model` is forwarded to the timeline, cutaways show in contact sheets, and QC skips plan geometry on reframed deliveries. An explicit `deliver.py --words` now overrides the plan words (for SDH captions).
 
 ### Decisions
 

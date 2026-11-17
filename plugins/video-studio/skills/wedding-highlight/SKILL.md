@@ -90,7 +90,7 @@ keeps its audio and the B-roll clips are muted:
 
 ```bash
 python CORE/scripts/transcribe.py --work vows --audio vows.mp4 --model base   # gives vows/transcript.json for "words"
-python CORE/scripts/run.py - --timeline wh/vows_spec.json --style SKILLS/cinematic-phone --genre wedding-highlight --format 16:9 --max-gap 0.8 --music song.wav --model base --work whv --stop-after plan
+python CORE/scripts/run.py - --timeline wh/vows_spec.json --style SKILLS/cinematic-phone --genre wedding-highlight --format 16:9 --music song.wav --model base --work whv --stop-after plan
 ```
 
 In `vows_spec.json` give the vows clip `"audio": "keep"`, `"words": "../vows/transcript.json"` and a `"jcut": 1.0`;
@@ -112,12 +112,11 @@ Edit `wh/plan.json` before the full render:
 - **Title:** `{"type": "titlecard", "kicker": "12.10.2026", "title": "Anna & Tom", "start": 0, "end": 3.5, "in": "blurIn", "out": "fade"}`
   or an end title in the last 4 s. Check spelling with the couple. `titlecard` is an opaque full frame (it hides the
   footage); to put the names over a shot use `{"type": "text", "text": "Anna & Tom", "y": 900, "in": "maskUp"}`.
-- `editor.py review` only sees plan elements, not the cuts inside the assembled montage, so a "24 s without a visual
-  change" note on a beat-cut montage is a false alarm. Judge pacing on the contact sheet and the watch-down.
 - **Vow subtitles (teaser/ceremony):** `{"type": "captions", "preset": "clean", "dodgeFace": true}`; fix names in `words`.
 - **Timeline tweaks** (in the spec, then rebuild): `"speedRamp"` into the kiss or the confetti, `"freezeEnd": 1.0` on
   the last portrait, `"transition": {"type": "dissolve", "dur": 0.8}` between parts of the day, `"dip-black"` before the exit.
 - Run `python CORE/scripts/editor.py review wh/plan.json --genre wedding-highlight` and read `review.md`.
+- **Footage clean-up (video, before the spec):** guest-cam handheld, dark reception and venue LED/tube light: `python CORE/scripts/prep.py c07.mp4 --work fix/c07 --stabilize --denoise light --deflicker`, then use `fix/c07/source.mp4` in the spec. `--stabilize` = vidstab (crops ~6% at the edges), `--denoise light|strong` = video noise, `--deflicker` = mains-light flicker. Only on clips that need it.
 
 ## Deliver
 
