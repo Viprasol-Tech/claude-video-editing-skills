@@ -1,0 +1,58 @@
+# Changelog
+
+## v2.0.0 (2026-11-17)
+
+v2 turns the pack from 40 caption styles into a complete editor. Genre skills now decide how a video is cut. The 40 styles become skins that decide how it looks. The core gains the tools and the editorial judgement both depend on.
+
+### Added
+
+**Engine modules (video-studio-core)**
+
+- **Editor brain** (`editor.py`, `genres.json`): 69 genre presets covering pacing, ASL range, cut rules, captions, music, SFX density, allowed transitions, hook rules, structure beats, loudness and safe zones. Includes Rule-of-Six-lite cut scoring, pacing, retention, overlay and caption checks, and `review --fix` for safe automatic fixes.
+- **Story and selects** (`story.py`, `selects.py`): outline and hook candidates, reorder into a timeline spec, best-take selects and an editable paper edit. A FRANKENBITE flag warns about constructed quotes.
+- **Smart autocut** (`autocut.py`): cuts at the quietest point, keeps breaths, removes retakes, J-cuts at sentence joins (`--jcut N`), filler policies and genre defaults (`--genre`).
+- **Timeline** (`timeline.py`): multi-clip build and `auto` (montage, story, highlights). It supports 58 FFmpeg xfade transitions plus dip-black, dip-white and whip, J/L cuts, constant speed, speed ramps, optical-flow slow motion, freeze, reverse, Ken Burns stills and beat-cut montages. Timing is frame-exact, and audio crossfades on every join.
+- **Analysis and reframe** (`scenes.py`, `track.py`): shot, black, freeze and flash detection; MediaPipe face tracks and active speaker; a face-follow reframe to any aspect with smooth, fast or locked camera modes; a stacked two-person layout.
+- **B-roll** (`broll.py`): places B-roll from a folder on matching words and covers jump cuts first.
+- **Colour** (`color.py`, `luts.py`): auto white balance, levels, contrast and saturation. Approximate log to Rec.709 for S-Log3, V-Log, C-Log3, Apple Log and F-Log. Official LUT input, Reinhard shot matching, and 51 looks: 39 generated LUTs with skin protection plus 12 legacy grades. Film texture (grain, halation, bloom, diffusion, aberration, weave, flicker, letterbox, dither), scopes, a looks sheet and legal-level QC.
+- **Motion** (`runtime/engine.js`): 30+ easings, cubic-bezier, springs, keyframes, shake, beat pulse and face anchoring. 17 new in/out animations and 10 text effects. 6 caption presets with safe zones, a reading-speed limit and face dodge. 25 new element types (charts, map, chat, code, callouts, lyric, split screen, texture layers and 11 transition overlays).
+- **Sound** (`audio_chain.py`, `beats.py`, `music_fit.py`, `tts.py`, `stems.py`): a dialogue chain, room-tone fill, 49 synthesized SFX, speech-aware ducking, music cut to length on bar lines with an end button, beats and peaks, offline voice-over and optional Demucs stems.
+- **Delivery and QC** (`deliver.py`, `captions.py`, `export_edl.py`, `qc.py`): 23 platform presets with two-pass loudness, face-aware reframe and size budgets. SRT, VTT and TTML to broadcast rules, chapters, thumbnails and a post pack. EDL, FCPXML and OTIO exports, ProRes 4444 overlays, and an automated QC report. BT.709 tagging on every encode.
+- **Pipeline** (`run.py`): `--genre`, `--clips`, `--timeline`, `--auto`, `--music`, `--reframe`, `--smart-cuts`, `--retakes`, `--broll`, `--platform` and `--deliver`, with QC and deliver as pipeline steps.
+- `check_env.py` now checks every FFmpeg filter v2 uses and lists the optional add-ons with their licences.
+
+**47 skills**
+
+- 42 genre skills: retention-reel, clip-miner-pro, reaction-duet, micro-drama, gaming-vod, longform-retention, video-essay, vlog, tutorial-screen, product-review, faceless-explainer, news-explainer, podcast-episode, conference-talk, interview-doc, vox-pop, scene-editor, short-film-finisher, trailer-teaser, ad-ladder, ugc-ad-matrix, brand-film, testimonial-film, saas-launch-demo, wedding-highlight, wedding-india, event-recap, concert-multicam, music-video, lyric-video, memorial-tribute, recipe-video, fitness-video, fashion-lookbook, travel-cinematic, real-estate-tour, course-module, kids-content, asmr-video, regional-devotional, localise-dub, sports-highlight.
+- 5 utility skills: finishing-pro, platform-pack, accessibility-pack, editor-handoff, versions-review.
+- `docs/catalog.md`: the professional catalogue with Ready / Upgrade / Heavy tags checked against the code.
+
+### Changed
+
+- **The grade is applied to the footage, not the graphics.** Correction, shot match and look now run on the speaker source before overlays, so captions and titles keep their designed colours. Texture and the legal limiter run once, at the end. `finish.grade` still works and now accepts any of the 52 look names.
+- **Loudness follows the platform.** -14 LUFS for social and YouTube, -16 for podcasts, -23 for EBU, -24 for ATSC, -27 for Netflix (approximate). A measured gain feeds a true-peak limiter, replacing the single fixed -14 LUFS pass.
+- **Captions respect reading speed and safe zones.** `cpsMax` (default 20) splits fast groups, `safe` keeps captions between 10% and 85% of the height and clear of the right 12% in 9:16, and `dodgeFace` moves them off the face. QC mirrors the engine's grouping.
+- **Autocut thinks like an editor.** Cut points come from the quietest gap, breaths are kept, retakes and fillers follow the genre preset, and `--max-gap` defaults to the genre's value.
+- All skill manifests are now v2.0.0, and the 40 styles are documented as skins over the genre skills.
+
+### Fixed
+
+- FFmpeg 9 removed `-filter_complex_script`. Scripts now translate it to `-/filter_complex`, so they work on FFmpeg 7, 8 and 9.
+- New PyAV builds broke faster-whisper's audio decode. Audio is now decoded through FFmpeg.
+- Caption words merged into one another while `activeScale` was enlarging the active word.
+- `theme.json` and `theme.css` are now read as UTF-8, which fixes crashes on Windows code pages.
+- `lut3d` paths on Windows now escape the drive colon (`C\:/...`). An unescaped path failed.
+- Number tokens that Whisper split (`$10` `,000.`) are re-joined at transcription and in subtitles.
+- The legal-level judgement now follows EBU R103, using the percentage of out-of-range pixels instead of a single stray pixel.
+- Also fixed: the genre's max-gap is respected, `--model` is forwarded to the timeline, cutaways show in contact sheets, and QC skips plan geometry on reframed deliveries. An explicit `deliver.py --words` now overrides the plan words (for SDH captions).
+
+### Decisions
+
+- **Kokoro instead of Piper** as the recommended voice-over. Piper's maintained engine is GPL-3.0, so it is only called as a separate program when the user installs it. Kokoro is Apache-2.0.
+- **LUTs are generated, not committed.** `luts.py` writes the 44 `.cube` files (39 looks and 5 log transforms) deterministically. They are git-ignored, and any missing LUT is generated on first use.
+- **`cpsMax` defaults to 20** characters per second for creator captions, matching the adult broadcast subtitle limit (17 for kids).
+- Non-commercial models (ProPainter, XTTS-v2, F5-TTS, MusicGen) are listed for personal use only. They are never bundled or downloaded by the pack.
+
+## v1.0.0
+
+- First release: 40 style skills on one engine (`video-studio-core`). Transcription with faster-whisper, pause, filler and retake cuts, person matte for text behind the speaker, HTML motion-graphics overlays, 13 grade options (including `none`), 9 generated SFX, ducked music and -14 LUFS loudness.
