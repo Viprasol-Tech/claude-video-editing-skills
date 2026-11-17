@@ -4,6 +4,11 @@ Claude then refines the plan (better key words, headlines, cards) before renderi
 
 usage: make_plan.py --work WORKDIR --style /path/to/style-skill [--format 9:16] [--source cut.mp4]
                     [--duration 15] [--no-matte] [--out WORKDIR/plan.json] [--cta "Follow for more"]
+                    [--genre reel-talking-head] [--beats WORKDIR/beats.json] [--no-review]
+  --genre fills density / hook / captions from genres.json where the theme has none (theme.json always wins).
+  Optional inputs read from WORKDIR when present: track.json -> plan["track"] (primary face, 10 fps),
+  peaks.json -> plan["peaks"], beats.json -> plan["beats"] (+ beat snapping if auto.keywords.snap == "beats").
+  Ends with a short editor.py review summary (advice only).
 
 The style folder must contain theme.json (and usually theme.css). See references/theme-schema.md.
 """
@@ -25,11 +30,28 @@ ap.add_argument("--image", default=None, help="image available to elements as {i
 ap.add_argument("--logo", default=None, help="logo image available to elements as {logo}")
 ap.add_argument("--image2", default=None, help="second image available as {image2} (e.g. the 'after' photo)")
 ap.add_argument("--out", default=None)
+ap.add_argument("--genre", default=None, help="genre preset (editor.py genres): fills density/hook/captions the theme lacks")
+ap.add_argument("--beats", default=None, help="beats.json; snaps zooms/flashes/key words to beats (default <work>/beats.json "
+                                             "when theme auto.keywords.snap == 'beats')")
+ap.add_argument("--no-review", action="store_true", help="skip the editor review summary")
 a = ap.parse_args()
 
+import editor
 work = os.path.abspath(a.work)
 style = os.path.abspath(a.style)
 th = load_json(os.path.join(style, "theme.json"))
+try:
+    GENRE = editor.load_genre(a.genre)
+except ValueError as e:
+    die(str(e))
+if GENRE:
+    th = dict(th, auto=editor.apply_genre_defaults(th.get("auto", {}), GENRE))   # theme.json values always win
+BEATS = []
+_bp = a.beats or os.path.join(work, "beats.json")
+if os.path.exists(_bp):
+    BEATS = editor.load_beats(_bp)
+SNAP = bool(BEATS) and (bool(a.beats) or th.get("auto", {}).get("keywords", {}).get("snap") == "beats")
+bsnap = (lambda t: editor.snap_to_beats(t, BEATS)) if SNAP else (lambda t: t)
 fmt = a.format or th.get("format", "9:16")
 W, H = parse_format(fmt)
 FPS = th.get("fps", 30)
@@ -175,13 +197,14 @@ if auto.get("keywords") and words:
     tpls = k.get("element")
     tpls = tpls if isinstance(tpls, list) else ([tpls] if tpls else [])
     for n, i in enumerate(kw_picked):
-        w = words[i]
+        w = dict(words[i], start=bsnap(words[i]["start"]))
+        on_beat = w["start"] != words[i]["start"]
         if tpls:
             e = fill(tpls[n % len(tpls)], text=disp(w).upper() if k.get("uppercase") else disp(w))
             e["start"] = round(w["start"] - 0.05, 3); e["end"] = round(w["start"] + k.get("hold", 1.3), 3)
             e["_role"] = 2; els.append(e)
         if k.get("zoom"):
-            zooms.append({"start": round(w["start"] - 0.06, 3), "end": round(w["start"] + k.get("zoomHold", 1.0), 3),
+            zooms.append({"start": round(w["start"] - (0 if on_beat else 0.06), 3), "end": round(w["start"] + k.get("zoomHold", 1.0), 3),
                           "scale": k["zoom"] if n % 2 == 0 or not k.get("alternate") else 1 + (k["zoom"] - 1) * 0.6,
                           **({"snap": True} if k.get("snap") else {})})
         if k.get("sfx"):
@@ -265,6 +288,7 @@ if auto.get("cuts") and os.path.exists(cutlist):
     cts = [s["out_start"] for s in load_json(cutlist)["segments"] if s["out_start"] > 0.3]
     last, flashes = -9, []
     for t in cts:
+        t = bsnap(t)
         if t - last >= auto["cuts"].get("minGap", 2.0):
             if auto["cuts"].get("sfx"): sfx.append({"t": t, "kind": auto["cuts"]["sfx"], "gain": auto["cuts"].get("gain", 0.25)})
             flashes.append(t); last = t
@@ -348,8 +372,29 @@ plan = {
     "sfx": sfx + [copy.deepcopy(x) for x in th.get("sfx", [])],
     "music": th.get("music"), "finish": th.get("finish", {}), "outputFile": "final.mp4",
 }
+# optional analysis inputs (only added when present, so old plans keep their exact shape)
+if GENRE:
+    plan["genre"] = GENRE["name"]
+if os.path.exists(os.path.join(work, "track.json")):
+    _tr = load_json(os.path.join(work, "track.json"))
+    plan["track"] = editor.compact_track(_tr)          # primary face [{t,x,y,w,h}] at 10 fps
+    if src and _tr.get("width"):
+        plan["sourceSize"] = [_tr["width"], _tr["height"]]
+    elif src:
+        _p = probe(src); plan["sourceSize"] = [_p.get("width", W), _p.get("height", H)]
+if os.path.exists(os.path.join(work, "peaks.json")):
+    plan["peaks"] = load_json(os.path.join(work, "peaks.json"))
+if BEATS:
+    plan["beats"] = BEATS
 out = a.out or os.path.join(work, "plan.json")
 save_json(out, plan)
 log(f"plan -> {out}  ({len(els)} elements, {len(kw_picked)} key words, {len(zooms)} zooms, {len(sfx)} sfx)")
 if matte and not os.path.exists(matte):
     log("this style uses depth effects: run matte.py before render.py")
+if not a.no_review:
+    try:                                                   # editor review is advice only, never fails the plan
+        log(editor.summary(editor.review(plan, GENRE, work)))
+        log(f"full review: python {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'editor.py')} review {out}"
+            + (f" --genre {GENRE['name']}" if GENRE else "") + "   (add --fix for safe fixes)")
+    except Exception as e:
+        log(f"(review skipped: {e})")
