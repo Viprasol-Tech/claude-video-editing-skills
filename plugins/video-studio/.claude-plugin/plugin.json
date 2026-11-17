@@ -1,8 +1,22 @@
 {
   "name": "video-studio",
-  "version": "1.0.0",
-  "description": "40 free video-editing styles plus the shared engine: captions, jump cuts, text behind the speaker, motion graphics, sound and grade.",
-  "author": {"name": "Viprasol"},
+  "version": "2.0.0",
+  "description": "A complete professional video editor for Claude: 42 genre skills (weddings, podcasts, ads, docs, reels, music videos...), 5 finishing/delivery skills and 40 style skins on one engine - editor-grade cuts, multi-clip timelines with transitions, face-follow reframe, colour grading, sound mix to platform loudness, motion graphics, subtitles, thumbnails and QC. Free and local.",
+  "author": {
+    "name": "Viprasol"
+  },
   "license": "MIT",
-  "keywords": ["video", "editing", "reels", "shorts", "captions", "motion-graphics"]
+  "keywords": [
+    "video",
+    "editing",
+    "reels",
+    "shorts",
+    "captions",
+    "motion-graphics",
+    "color-grading",
+    "audio-mixing",
+    "wedding",
+    "podcast",
+    "youtube"
+  ]
 }

@@ -44,6 +44,8 @@ if not COL.grade_on_source(plan):
 if fin.get("lut"):
     vf.append(COL.lut_filter(P(fin["lut"])))
 vf.append(COL.texture_chain(fin, W, H))  # grain/halation/vignette/letterbox/sharpen... + legal limiter, ends yuv420p
+# tag as Rec.709 SDR (FFmpeg 9 ignores -color_primaries on the CLI; untagged files shift colour on some players)
+vf.append("setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv")
 
 # ---------- audio: dialogue chain, SFX, music + ducking, loudness (audio_chain.py) ----------
 from audio_chain import build_mix_graph

@@ -1,6 +1,11 @@
 # plan.json reference
 
 `make_plan.py` writes a first draft. Claude edits it, then runs `render.py` and `finish.py`.
+
+> **v2 references:** this file covers the base elements. Also see `motion.md` (easing, springs, keyframes, caption presets,
+> 28 new components, transition overlays, face anchoring, beats), `color.md` (the `"color"` block), `audio.md`
+> (`"audio"`, `"music"`, `"sfx"`), `timeline.md` (multi-clip specs), `delivery.md`, and `craft.md` (how to cut).
+> v2 plan keys added by `make_plan.py` when available: `genre`, `track` (face boxes), `beats`, `peaks`.
 All times are in seconds on the **cut** timeline (after autocut). All positions are output pixels:
 `x`,`y` is the anchor point (default centre of frame); `anchor` can be `center`, `top`, `bottom`,
 `left`, `right`, `top-left` and so on.

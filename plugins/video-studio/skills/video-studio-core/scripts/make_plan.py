@@ -346,6 +346,17 @@ els = [e for e in els if not e.get("_drop")]
 for e in els:
     e.pop("_role", None); e.pop("_drop", None); e.pop("_grp", None)
 
+# 9:16 safe zone: centred boxes must stay clear of the right-side buttons (right 12%) -> max width 76% of W
+if H > W:
+    for e in els:
+        if e.get("type") in ("captions", "background", "progress", "flash", "ticker", "transition", "grain", "vignette",
+                             "letterbox", "lightleak", "titlecard", "shape"):
+            continue
+        w_, x_ = e.get("w"), e.get("x", W / 2)
+        if isinstance(w_, (int, float)) and isinstance(x_, (int, float)) and abs(x_ - W / 2) < 2                 and e.get("anchor", "center") == "center" and w_ > W * 0.76:
+            e["w"] = round(W * 0.76)
+
+
 # speaker config (fractions -> pixels)
 spk = copy.deepcopy(th.get("speaker", {"mode": "full"}))
 if not src:

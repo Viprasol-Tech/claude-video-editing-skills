@@ -59,7 +59,7 @@ ap.add_argument("--retakes", action="store_true")
 ap.add_argument("--broll", default=None, help="folder of b-roll clips/images")
 ap.add_argument("--platform", default=None)
 ap.add_argument("--deliver", default=None, help="comma list of deliver.py presets")
-ap.add_argument("--stop-after", choices=["timeline", "reframe", "prep", "transcribe", "cut", "matte", "plan", "broll", "render", "finish"], default=None)
+ap.add_argument("--stop-after", choices=["timeline", "reframe", "prep", "transcribe", "cut", "matte", "plan", "broll", "render", "finish", "qc"], default=None)
 a = ap.parse_args()
 
 
@@ -140,5 +140,9 @@ fin = ["finish.py", plan]
 if a.formats: fin += ["--formats", a.formats]
 if a.platform: fin += ["--platform", a.platform]
 step("finish", fin)
+final = os.path.join(a.work, "final.mp4")
+qc = ["qc.py", final, "--plan", plan, "--out-dir", a.work]
+if a.platform: qc += ["--platform", a.platform]
+step("qc", qc)          # report only (qc.py exits non-zero only with --strict)
 if a.deliver:
-    step("deliver", ["deliver.py", plan, "--to", a.deliver])
+    step("deliver", ["deliver.py", plan, "--to", a.deliver, "--out-dir", os.path.join(a.work, "deliver")])
