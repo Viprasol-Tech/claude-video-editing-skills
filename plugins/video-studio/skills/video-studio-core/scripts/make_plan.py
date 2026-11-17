@@ -66,6 +66,9 @@ words = []
 wpath = os.path.join(work, "words.json") if os.path.exists(os.path.join(work, "words.json")) else os.path.join(work, "transcript.json")
 if os.path.exists(wpath):
     words = load_json(wpath).get("words", [])
+    # glue Whisper's split tokens ("$10" ",000.", "50" "%") even for transcripts made before transcribe.py did it
+    from captions import merge_tokens
+    words = merge_tokens(words)
 dur = a.duration or (probe(src)["duration"] if src else (words[-1]["end"] + 1.0 if words else
        (min(probe(a.clip)["duration"], th.get("maxDuration", 30)) if a.clip else th.get("defaultDuration", 10))))
 dur = round(dur, 3)
@@ -249,7 +252,22 @@ if auto.get("numbers") and words:
         nxtw = clean(words[i + 1]["w"]) if i + 1 < len(words) else ""
         if not suf and nxtw in ("percent",): suf = "%"
         if not suf and nxtw in ("thousand", "million", "billion"): suf = {"thousand": "K", "million": "M", "billion": "B"}[nxtw]
-        label = " ".join(disp(x) for x in words[i + 1:i + 4] if clean(x["w"]) not in STOP)[:28]
+        # label = the words that belong to this number in the same sentence: after it, else before it
+        after = []
+        if not re.search(r"[.!?]$", w["w"]):
+            for x in words[i + 1:i + 5]:
+                after.append(x)
+                if re.search(r"[.!?,;:]$", x["w"]):
+                    break
+        before = []
+        for x in reversed(words[max(0, i - 4):i]):
+            if re.search(r"[.!?]$", x["w"]):
+                break
+            before.insert(0, x)
+        pick = [x for x in after if clean(x["w"]) not in STOP and clean(x["w"]) not in ("percent", "thousand", "million", "billion")]
+        if not pick:
+            pick = [x for x in before if clean(x["w"]) not in STOP]
+        label = " ".join(disp(x) for x in pick[:3])[:28]
         e = fill(auto["numbers"]["element"], label=label)
         e.update({"from": 0, "to": val, "prefix": m.group(1) or "", "suffix": suf, "decimals": 1 if m.group(3) else 0,
                   "start": round(w["start"] - 0.05, 3), "end": round(w["start"] + auto["numbers"].get("hold", 2.2), 3), "_role": 3})
