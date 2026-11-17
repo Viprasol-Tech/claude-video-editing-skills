@@ -102,14 +102,45 @@ def flash_analysis(yavg, fps, maxval=255.0):
 
 # ------------------------------------------------------------------ plan / caption checks
 def creator_caption_chunks(el, words):
-    toks, n = C.merge_tokens(words), int(el.get("maxWords", 3))
-    chunks = [toks[i:i + n] for i in range(0, len(toks), n)]
-    out = []
-    for k, ch in enumerate(chunks):
-        end = chunks[k + 1][0]["start"] if k + 1 < len(chunks) else ch[-1]["end"] + float(el.get("hold", 0.3))
-        text = " ".join(t["w"] for t in ch)
-        out.append({"start": ch[0]["start"], "dur": max(1e-3, end - ch[0]["start"]), "text": text.upper() if el.get("uppercase") else text})
-    return out
+    """Mirror runtime/engine.js C.captions grouping exactly (maxWords/maxChars/breakGap/punctuation, hold,
+    cpsMax splitting) so QC judges what is actually on screen."""
+    import re
+    ws = [w for w in words if str(w.get("w", "")).strip()]
+    max_words, max_chars = int(el.get("maxWords") or 3), int(el.get("maxChars") or 22)
+    gap, hold = float(el.get("breakGap") or 0.45), float(el.get("hold", 0.5))
+    punct = re.compile(r"[.!?]$" if el.get("breakOnPunct") == "sentence" else r"[.!?,;:]$")
+    groups, cur = [], []
+    for i, w in enumerate(ws):
+        chars = sum(len(b["w"]) + 1 for b in cur) + len(w["w"])
+        if cur and (len(cur) >= max_words or chars > max_chars or (i and w["start"] - ws[i - 1]["end"] > gap)):
+            groups.append(cur); cur = []
+        cur.append(w)
+        if el.get("breakOnPunct", True) is not False and punct.search(w["w"].strip()):
+            groups.append(cur); cur = []
+    if cur:
+        groups.append(cur)
+
+    def timed(gs):
+        return [(g, g[0]["start"], min(g[-1]["end"] + hold, gs[k + 1][0]["start"] if k + 1 < len(gs) else 1e9))
+                for k, g in enumerate(gs)]
+    cps_max, min_dur = float(el.get("cpsMax", 20) or 0), float(el.get("minDur", 0.3))
+    for _ in range(4 if cps_max > 0 else 0):
+        out, changed = [], False
+        for g, s, e in timed(groups):
+            chars = sum(len(w["w"].strip()) for w in g) + len(g) - 1
+            m = (len(g) + 1) // 2
+            if len(g) > 1 and chars / max(0.05, e - s) > cps_max and g[m]["start"] - s >= min_dur and e - g[m]["start"] >= min_dur:
+                out += [g[:m], g[m:]]; changed = True
+            else:
+                out.append(g)
+        groups = out
+        if not changed:
+            break
+    res = []
+    for g, s, e in timed(groups):
+        text = " ".join(w["w"].strip() for w in g)
+        res.append({"start": s, "dur": max(1e-3, e - s), "text": text.upper() if el.get("uppercase") else text})
+    return res
 
 
 def overlay_checks(plan, W, H, dur):
@@ -152,7 +183,7 @@ def caption_checks(plan, words, fps, cps):
             continue
         chunks = creator_caption_chunks(el, words)
         maxc = int(el.get("maxChars", C.MAX_CHARS))
-        fast = [c for c in chunks if len(c["text"]) / c["dur"] > cps]
+        fast = [c for c in chunks if " " in c["text"] and len(c["text"]) / c["dur"] > cps]  # one word on screen cannot be split further
         short = [c for c in chunks if c["dur"] < 0.3]
         long_ = [c for c in chunks if len(c["text"]) > maxc]
         res.append(("creator_captions_cps", "warn" if fast else "pass", f"{len(fast)}/{len(chunks)} chunks over {cps:g} cps",
