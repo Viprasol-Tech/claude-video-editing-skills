@@ -439,7 +439,7 @@
       groups = out; timeGroups(groups);
       if (!changed) break;
     }
-    const clean = s => s.toLowerCase().replace(/[^\p{L}\p{N}']/gu, "");
+    const clean = s => s.toLowerCase().replace(/[^\p{L}\p{M}\p{N}']/gu, "");
     const kw = new Set((el.keywords || []).map(clean));
     const emoji = {}; if (el.emoji) for (const k in el.emoji) emoji[clean(k)] = el.emoji[k];
     const outer = h("div", "el el-captions " + (el.className || ""), root);

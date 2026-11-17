@@ -222,7 +222,8 @@ def zoom_centre_expr():
         c = (z["cx"], z["cy"]) if "cx" in z and "cy" in z else (_face_at(z["start"]) if z.get("toFace", True) else None)
         if not c:
             continue
-        s, e = z["start"] - 0.2, z["end"] + 0.2
+        pad = 0 if z.get("snap") else 0.2  # snap punch-ins sit back to back: padded windows would add their offsets twice
+        s, e = z["start"] - pad, z["end"] + pad
         xs.append(f"{c[0] - 0.5:.4f}*between(it,{s},{e})")
         ys.append(f"{max(0.0, c[1] - 0.06) - 0.5:.4f}*between(it,{s},{e})")  # a touch above centre: eyes, not chin
     if len(xs) == 1:
