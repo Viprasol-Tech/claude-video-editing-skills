@@ -1726,7 +1726,7 @@
     const e2 = Object.assign({ w: W * 0.84, in: "rise" }, el);
     const { outer, inner } = base(e2, root); inner.classList.add("check");
     if (el.strike) inner.classList.add("is-strike");
-    if (el.title) h("div", "check-title", inner, esc(el.title));
+    if (el.title) h("div", "check-title", inner, el.html ? el.title : esc(el.title));
     const s0 = el.start || 0;
     const items = (el.items || []).map((it, i) => {
       const o = typeof it === "string" ? { text: it } : it;

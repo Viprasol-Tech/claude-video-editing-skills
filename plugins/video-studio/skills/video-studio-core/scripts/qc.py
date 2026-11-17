@@ -144,7 +144,7 @@ def creator_caption_chunks(el, words):
 
 
 def overlay_checks(plan, W, H, dur):
-    res, els = [], [e for e in plan.get("elements", []) if e.get("type") in TEXT_TYPES]
+    res, els = [], [e for e in plan.get("elements", []) if e.get("type") in TEXT_TYPES and not e.get("decor")]   # decor = scene scenery
     vertical = H > W
     spans = []
     for e in els:

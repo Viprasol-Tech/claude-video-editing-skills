@@ -428,6 +428,16 @@ def composite(out_path, single_t=None, still_layers=None):
         graph.append(f"[bb{k}a][bb{k}c]overlay={bx}:{by}{en}[bbo{k}]"); cur = f"bbo{k}"
     if "front" in layers:
         fi = add_input(seq("front")); graph.append(f"[{cur}][{fi}:v]overlay=0:0[c4]"); cur = "c4"
+    # softCuts: full-frame blur pulse that hides a scene change (plan "softCuts": [{at, dur .36, sigma 22}])
+    for k, sc in enumerate(plan.get("softCuts", [])):
+        at, d, sg = sc["at"], sc.get("dur", 0.36), sc.get("sigma", 22)
+        steps = [(at - d / 2, at - d / 6, sg / 3), (at - d / 6, at + d / 6, sg), (at + d / 6, at + d / 2, sg / 3)]
+        for j, (a0, a1, sgj) in enumerate(steps):
+            if single_t is not None:
+                if a0 <= single_t < a1:
+                    graph.append(f"[{cur}]gblur=sigma={sgj:.1f}[sc{k}_{j}]"); cur = f"sc{k}_{j}"
+                continue
+            graph.append(f"[{cur}]gblur=sigma={sgj:.1f}:enable='between(t,{a0:.3f},{a1:.3f})'[sc{k}_{j}]"); cur = f"sc{k}_{j}"
     graph.append(f"[{cur}]format=yuv420p[vout]")
     gf = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False); gf.write(";\n".join(graph)); gf.close()
     cmd = ["ffmpeg", "-y", "-hide_banner"] + inputs + ["-filter_complex_script", gf.name, "-map", "[vout]"]

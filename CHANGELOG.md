@@ -8,6 +8,9 @@
 - `render.py`: `speaker.backdrop` (`blur` / `hide`) shows a blurred copy of the shot or only the HTML backgrounds around the person cut-out; `speaker.glow` adds a rim glow; `personScale` / `personDrop` resize or lower the cut-out with a faded top edge; `speaker.layouts` moves the footage between tilted, rounded cards over time.
 - `make_plan.py`: a headline or key-word template can be a list (a group of elements with the same timing); `auto.headlines.layouts` cycles card layouts per sentence; every sentence gets its headline (falls back to the longest word).
 
+- `sequence.py --recipe ribbon`: scene sequencer for `glass-ribbon` - every phrase alternates a person scene (ticking frosted card, glass icons, phrase pill, payoff line) and a type-only scene (stacked glass notes, two-tone big type, search bar typing the next phrase), joined by `softCuts` (full-frame blur pulses) and whooshes.
+- `render.py` plan `softCuts`; `checklist` `html` titles; elements with `"decor": true` are scenery that QC and the overlay review skip.
+
 ### Fixed
 
 - Indic scripts: key-word matching (engine.js) and word scoring (make_plan.py) no longer strip vowel signs (Unicode category M), so Hindi/Haryanvi key words and headlines work. The Devanagari danda and a comma followed by a pause end a phrase.

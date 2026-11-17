@@ -150,7 +150,7 @@ def overlays(plan):
     out = []
     for i, e in enumerate(plan.get("elements", [])):
         s, en = _span(e, dur)
-        if e.get("type") in OVERLAY_SKIP or (s <= 0.05 and en >= dur * 0.9):
+        if e.get("type") in OVERLAY_SKIP or e.get("decor") or (s <= 0.05 and en >= dur * 0.9):
             continue
         out.append((i, e, s, en))
     return out
