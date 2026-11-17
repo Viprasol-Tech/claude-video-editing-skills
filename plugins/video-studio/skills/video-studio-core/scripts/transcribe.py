@@ -91,5 +91,8 @@ for seg in segments:
         t = w.word.strip()
         if t:
             words.append({"w": t, "start": round(w.start, 3), "end": round(w.end, 3), "p": round(w.probability, 3)})
+# Whisper splits "$10,000" -> "$10" ",000." and "50%" -> "50" "%": glue them so captions/counters see one word
+from captions import merge_tokens
+words = [dict(m, start=round(m["start"], 3), end=round(m["end"], 3)) for m in merge_tokens(words)]
 save_json(out_path, {"language": info.language, "words": words, "segments": segs})
 log(f"{len(words)} words, language={info.language} -> {out_path}")

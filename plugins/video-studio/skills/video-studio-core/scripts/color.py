@@ -532,7 +532,7 @@ def qc(video_path: str, max_frames: int = 300) -> dict:
     path = os.path.join(tmp, "qc.txt")
     if not os.path.exists(path):
         die(f"signalstats produced no data for {video_path}")
-    for line in open(path):
+    for line in open(path, encoding="utf-8"):
         if line.startswith("lavfi.signalstats."):
             k, v = line.strip().split("=", 1)
             try:
@@ -545,12 +545,14 @@ def qc(video_path: str, max_frames: int = 300) -> dict:
     r = {"frames": len(vals.get("YMIN", [])), "ymin": min(vals.get("YMIN", [0])), "ymax": max(vals.get("YMAX", [0])),
          "ylow_avg": float(np.mean(vals.get("YLOW", [0]))), "yhigh_avg": float(np.mean(vals.get("YHIGH", [0]))),
          "satmax": max(vals.get("SATMAX", [0])), "brng_pct_max": float(brng_pct.max()), "brng_pct_avg": float(brng_pct.mean())}
-    issues = []
-    if r["ymin"] < 5 or r["ymax"] > 246:
-        issues.append(f"luma outside EBU R103 preferred 5-246 (min {r['ymin']:.0f}, max {r['ymax']:.0f})")
+    # EBU R103 judges excursions by how many pixels exceed range (<=1% is tolerated), not by the single
+    # extreme pixel: lossy encoders ring a few pixels past the limiter on hard edges.
+    issues, notes = [], []
     if r["brng_pct_max"] > 1.0:
-        issues.append(f"{r['brng_pct_max']:.2f}% pixels out of broadcast range on worst frame")
-    r["issues"], r["legal"] = issues, not issues
+        issues.append(f"{r['brng_pct_max']:.2f}% pixels out of broadcast range on worst frame (EBU R103 allows 1%)")
+    if r["ymin"] < 5 or r["ymax"] > 246:
+        notes.append(f"isolated pixels outside 5-246 (min {r['ymin']:.0f}, max {r['ymax']:.0f}) - typical encoder overshoot")
+    r["issues"], r["notes"], r["legal"] = issues, notes, not issues
     return r
 
 

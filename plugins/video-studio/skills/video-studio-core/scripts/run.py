@@ -35,7 +35,7 @@ ap.add_argument("--model", default="small")
 ap.add_argument("--language", default=None)
 ap.add_argument("--prompt", default=None)
 ap.add_argument("--no-cut", action="store_true")
-ap.add_argument("--max-gap", default="0.35")
+ap.add_argument("--max-gap", default=None, help="pause length to cut (default: genre preset, else 0.35)")
 ap.add_argument("--cut", default="")
 ap.add_argument("--matte-backend", default="mediapipe")
 ap.add_argument("--no-matte", action="store_true")
@@ -73,7 +73,7 @@ def step(name, args):
 
 
 import json
-theme = json.load(open(os.path.join(a.style, "theme.json")))
+theme = json.load(open(os.path.join(a.style, "theme.json"), encoding="utf-8"))
 needs_matte = theme.get("matte") and not a.no_matte and not a.no_source
 
 multi = a.timeline or a.clips or a.auto
@@ -87,9 +87,10 @@ if multi:
         if a.format: tl += ["--format", a.format]
         if a.music: tl += ["--music", a.music]
         if a.duration: tl += ["--duration", a.duration]
+        tl += ["--model", a.model]
     step("timeline", tl)
     if a.auto != "montage":
-        ac = ["autocut.py", "--work", a.work, "--max-gap", a.max_gap]
+        ac = ["autocut.py", "--work", a.work] + (["--max-gap", a.max_gap] if a.max_gap else [])
         if a.no_cut: ac.append("--keep-all")
         if a.genre: ac += ["--genre", a.genre]
         if a.smart_cuts: ac.append("--smart-cuts")
@@ -108,7 +109,7 @@ elif not a.no_source:
     if a.language: tr += ["--language", a.language]
     if a.prompt: tr += ["--prompt", a.prompt]
     step("transcribe", tr)
-    ac = ["autocut.py", "--work", a.work, "--max-gap", a.max_gap]
+    ac = ["autocut.py", "--work", a.work] + (["--max-gap", a.max_gap] if a.max_gap else [])
     if a.no_cut: ac.append("--keep-all")
     if a.cut: ac += ["--cut", a.cut]
     if a.genre: ac += ["--genre", a.genre]

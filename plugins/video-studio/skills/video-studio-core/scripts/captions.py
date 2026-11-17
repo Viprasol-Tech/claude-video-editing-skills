@@ -51,9 +51,13 @@ def merge_tokens(words):
         if not t:
             continue
         if out and (t.startswith(_GLUE) or out[-1]["w"].endswith(("$", "#", "(", "-"))):
-            out[-1] = {"w": out[-1]["w"] + t, "start": out[-1]["start"], "end": max(out[-1]["end"], float(w["end"]))}
+            prev = out[-1]
+            out[-1] = {**prev, "w": prev["w"] + t, "end": max(prev["end"], float(w["end"]))}
+            if "p" in w or "p" in prev:  # keep the weakest confidence of the glued pieces
+                out[-1]["p"] = min(float(prev.get("p", 1)), float(w.get("p", 1)))
         else:
-            out.append({"w": t, "start": float(w["start"]), "end": float(w["end"])})
+            out.append({**{k: v for k, v in w.items() if k not in ("w", "start", "end")},
+                        "w": t, "start": float(w["start"]), "end": float(w["end"])})
     return out
 
 

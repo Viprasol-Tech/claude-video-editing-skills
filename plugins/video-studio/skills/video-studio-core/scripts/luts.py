@@ -41,7 +41,7 @@ def write_cube(path: str, rgb: np.ndarray, title: str, n: int = SIZE) -> None:
 
 def read_cube(path: str) -> tuple[np.ndarray, int]:
     n, rows = SIZE, []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             s = line.strip()
             if not s or s[0] == "#" or s.startswith(("TITLE", "DOMAIN")):

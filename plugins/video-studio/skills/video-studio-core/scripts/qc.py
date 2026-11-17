@@ -61,7 +61,7 @@ def analyse(path, has_audio):
     err = p.stderr
     yavg, brng = [], []
     if os.path.exists(os.path.join(d, "stats.txt")):
-        for line in open(os.path.join(d, "stats.txt")):
+        for line in open(os.path.join(d, "stats.txt"), encoding="utf-8"):
             if "signalstats.YAVG=" in line:
                 yavg.append(float(line.split("=")[1]))
             elif "signalstats.BRNG=" in line:
@@ -198,6 +198,13 @@ def _add(rows, check, status, value, expected="", detail=""):
     rows.append({"check": check, "status": status, "value": value, "expected": expected, "detail": detail})
 
 
+def _reframed(st, O):
+    """A delivery in a different aspect ratio than its plan (e.g. 9:16 cut of a 16:9 master)."""
+    if not (O.get("width") and st.get("width")):
+        return False
+    return abs(st["width"] / st["height"] - O["width"] / O["height"]) > 0.02
+
+
 def _tech_checks(rows, st, pr, plan, path):
     O = (plan or {}).get("output", {})
     if O.get("duration"):
@@ -206,7 +213,9 @@ def _tech_checks(rows, st, pr, plan, path):
              round(st["duration"], 3), f"{O['duration']} s (+-1 frame)")
     if O.get("width"):
         ok = (st["width"], st["height"]) == (O["width"], O["height"])
-        _add(rows, "resolution_vs_plan", "pass" if ok else "fail", f"{st['width']}x{st['height']}", f"{O['width']}x{O['height']}")
+        reframed = _reframed(st, O)
+        _add(rows, "resolution_vs_plan", "pass" if ok else ("info" if reframed else "fail"), f"{st['width']}x{st['height']}",
+             f"{O['width']}x{O['height']}", "platform reframe of the master: plan geometry checks skipped" if reframed else "")
     if O.get("fps") and st["fps"]:
         _add(rows, "fps_vs_plan", "pass" if abs(st["fps"] - O["fps"]) < 0.01 else "warn", st["fps"], O["fps"])
     if pr and pr["w"]:

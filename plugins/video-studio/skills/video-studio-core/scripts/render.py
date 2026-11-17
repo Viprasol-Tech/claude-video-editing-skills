@@ -51,7 +51,7 @@ for c in plan.get("clips", []):
     d = os.path.join(rdir, "clips", c["id"])
     marker = os.path.join(d, ".src")
     sig = json.dumps([src, c.get("start"), c.get("end"), c.get("maxWidth", 1080), FPS])
-    if not (os.path.exists(marker) and open(marker).read() == sig):
+    if not (os.path.exists(marker) and open(marker, encoding="utf-8").read() == sig):
         shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
         cmd = ["ffmpeg", "-y", "-hide_banner"]
         if c.get("start") is not None: cmd += ["-ss", str(c["start"])]
@@ -276,7 +276,14 @@ def composite(out_path, single_t=None, still_layers=None):
             graph.append(f"[{cur}][person]overlay={rx}:{ry}[c3]"); cur = "c3"
     elif "behind" in layers:
         bi = add_input(seq("behind")); graph.append(f"[{cur}][{bi}:v]overlay=0:0[c2]"); cur = "c2"
-    # cutaways (full-frame b-roll videos)
+    # cutaways (full-frame b-roll videos); stills show the one on screen at single_t
+    if single_t is not None:
+        for k, cw in enumerate(c for c in plan.get("cutaways", []) if c["start"] <= single_t < c["end"]):
+            off = max(0.0, single_t - cw["start"] + cw.get("srcStart", 0))
+            img = str(cw["src"]).lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+            ci = add_input((["-loop", "1"] if img else ["-ss", str(off)]) + ["-i", P(cw["src"])])
+            graph.append(f"[{ci}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},format=yuva420p[cws{k}]")
+            graph.append(f"[{cur}][cws{k}]overlay=0:0[cwso{k}]"); cur = f"cwso{k}"
     for k, cw in enumerate(plan.get("cutaways", []) if single_t is None else []):
         ci = add_input(["-i", P(cw["src"])])
         d = cw["end"] - cw["start"]
