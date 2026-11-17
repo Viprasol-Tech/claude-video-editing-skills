@@ -641,6 +641,8 @@ def resolve_input(inp, words_path=None):
             r["matte"] = P(plan["matte"])
         r["accent"] = _hex(plan.get("theme", {}).get("vars", {}).get("--c-accent"))
     wp = words_path or os.path.join(r["work"], "words.json")
+    if words_path:  # an explicit --words file (e.g. SDH with [sound] tags) always wins over the plan's words
+        r["words"] = []
     if not r["words"] and os.path.exists(wp):
         wj = load_json(wp)
         ws = wj.get("words", []) if isinstance(wj, dict) else wj
