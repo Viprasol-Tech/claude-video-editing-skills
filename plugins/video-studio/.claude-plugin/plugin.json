@@ -1,0 +1,8 @@
+{
+  "name": "video-studio",
+  "version": "1.0.0",
+  "description": "40 free video-editing styles plus the shared engine: captions, jump cuts, text behind the speaker, motion graphics, sound and grade.",
+  "author": {"name": "Viprasol"},
+  "license": "MIT",
+  "keywords": ["video", "editing", "reels", "shorts", "captions", "motion-graphics"]
+}
