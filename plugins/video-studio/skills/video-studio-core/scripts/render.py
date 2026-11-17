@@ -111,6 +111,13 @@ def shot(pg, t, layer, path):
     vis = pg.evaluate("([t,l]) => window.__render(t,l)", [t, layer])
     if vis:
         pg.screenshot(path=path, omit_background=(layer != "bg"), type="png")
+        if layer != "bg":
+            # A fully opaque frame (e.g. a full-screen title card) is saved as RGB, not RGBA. A pixel-format change
+            # mid-sequence breaks FFmpeg's overlay and the rest of the video renders black. Always store RGBA.
+            with Image.open(path) as im:
+                needs = im.mode != "RGBA"
+            if needs:
+                Image.open(path).convert("RGBA").save(path)
     return vis
 
 

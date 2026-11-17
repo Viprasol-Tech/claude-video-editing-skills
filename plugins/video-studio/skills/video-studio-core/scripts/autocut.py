@@ -350,6 +350,11 @@ def main():
     keep_all = a.keep_all or (g is not None and not ga.get("enabled", True) and a.max_gap is None)
 
     src = os.path.join(a.work, "source.mp4")
+    old_cl = os.path.join(a.work, "cutlist.json")
+    if keep_all and os.path.exists(old_cl) and load_json(old_cl).get("kind") == "timeline":
+        # a timeline.py assembly: its cut list (clip joins, transitions) is the edit - keep it, words already match
+        log("keep-all on a timeline assembly: keeping timeline cutlist.json unchanged")
+        return
     tr = load_json(os.path.join(a.work, "transcript.json"))
     info = probe(src)
     dur, fps = info["duration"], info.get("fps", 30) or 30

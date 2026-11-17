@@ -348,10 +348,11 @@ def assemble(clips, W, H, fps, total, music, work, tmp):
 
 def retime_words(clips, fps):
     """Per-clip `words` files (source time) -> words on the assembled timeline. None if a clip lacks them."""
-    words = []
+    words, used = [], 0
     for c in clips:
         if c.get("audio", "keep") == "mute" or not c["has_audio"]:
             continue
+        used += 1
         if not c.get("words"):
             return None
         wf = c["words"]
@@ -367,6 +368,8 @@ def retime_words(clips, fps):
             if ts >= a0 - 1e-3 and te <= a1 + 1e-3:
                 nw = dict(w); nw["start"], nw["end"] = round(ts, 3), round(te, 3)
                 words.append(nw)
+    if not used:  # no clip carries audio (e.g. photos + voice-over as music): let the caller transcribe
+        return None
     return sorted(words, key=lambda w: w["start"])
 
 
@@ -409,7 +412,8 @@ def build(spec, work, transcribe=True, model="small", spec_base="."):
     if words is not None:
         save_json(os.path.join(work, "transcript.json"), {"language": spec.get("language"), "words": words, "segments": []})
         log(f"re-timed {len(words)} words from per-clip transcripts")
-    elif transcribe and any(c.get("audio", "keep") != "mute" and c["has_audio"] for c in clips):
+    elif transcribe and (any(c.get("audio", "keep") != "mute" and c["has_audio"] for c in clips)
+                         or (spec.get("music") or {}).get("voiceover")):  # VO laid as the spec's music track
         r = subprocess.run([sys.executable, os.path.join(HERE, "transcribe.py"), "--work", work, "--model", model])
         if r.returncode != 0:
             log("transcription failed; words.json not written")

@@ -92,7 +92,7 @@ if multi:
         if a.duration: tl += ["--duration", a.duration]
         tl += ["--model", a.model]
     step("timeline", tl)
-    if a.auto != "montage":
+    if a.auto != "montage" and not a.timeline:  # a timeline spec already sets every in/out point
         ac = ["autocut.py", "--work", a.work] + (["--max-gap", a.max_gap] if a.max_gap else [])
         if a.no_cut: ac.append("--keep-all")
         if a.genre: ac += ["--genre", a.genre]

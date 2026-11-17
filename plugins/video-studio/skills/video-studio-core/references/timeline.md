@@ -140,3 +140,11 @@ motion). Mute or duck ramped dialogue; let music carry the ramp.
 `run.py`'s later steps on the same work folder (`make_plan.py --work W ...`, `render.py`, `finish.py`).
 `timeline.py` also writes `source.mp4` + `audio16k.wav`, so `autocut.py --work W` can still tighten pauses in
 the assembled result (it re-uses `transcript.json`).
+
+### Voice-over as the soundtrack (photos / faceless edits)
+
+When no clip carries audio and the narration is laid as the spec's music, add `"voiceover": true` to the spec's
+`music` block. `timeline.py build` then transcribes the assembled audio so `words.json` has word timings for captions:
+`"music": {"src": "vo/voice.wav", "volume": 1.0, "voiceover": true}`. A plain music bed is never transcribed.
+`run.py --timeline` skips autocut (the spec already sets every in/out); `autocut.py --keep-all` leaves a timeline's
+`cutlist.json` untouched so `editor.py review` still sees every clip join.

@@ -206,6 +206,9 @@ def _reframed(st, O):
 
 
 def _tech_checks(rows, st, pr, plan, path):
+    if not st.get("width"):  # audio-only delivery (podcast mp3/wav): only audio checks apply
+        _add(rows, "audio_present", "pass" if st["acodec"] else "fail", f"{st['acodec']} {st['sample_rate']} Hz x{st['channels']}", "audio stream")
+        return
     O = (plan or {}).get("output", {})
     if O.get("duration"):
         dd = abs(st["duration"] - float(O["duration"]))
@@ -282,7 +285,9 @@ def qc(video, plan_path=None, platform="auto", cps=C.CPS_ADULT):
     plan = load_json(plan_path) if plan_path else None
     st = stream_info(video)
     if platform == "auto":
-        platform = "reels" if st["height"] and st["width"] and st["height"] > st["width"] else "youtube"
+        platform = ("podcast-mp3" if not st.get("width") else
+                    "reels" if st["height"] and st["width"] and st["height"] > st["width"] else "youtube")
+    platform = {"podcast": "podcast-mp3", "audio": "audio-wav"}.get(platform, platform)
     pr = PRESETS.get(platform) if platform != "none" else None
     fps = st["fps"] or 30
     rows = []
@@ -323,7 +328,7 @@ def main():
     ap.add_argument("--kids", action="store_true")
     ap.add_argument("--strict", action="store_true", help="exit 1 if any check fails")
     a = ap.parse_args()
-    if a.platform not in ("auto", "none") and a.platform not in PRESETS:
+    if a.platform not in ("auto", "none", "podcast", "audio") and a.platform not in PRESETS:
         sys.exit(f"unknown platform {a.platform}")
     rep = qc(a.video, a.plan, a.platform, C.CPS_KIDS if a.kids else C.CPS_ADULT)
     od = a.out_dir or os.path.dirname(os.path.abspath(a.video))
