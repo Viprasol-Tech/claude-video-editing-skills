@@ -1,0 +1,1 @@
+{"name":"claude-video-editing-skills","description":"Free Claude skills that turn a raw clip into a finished, styled video edit.","owner":{"name":"Viprasol"},"plugins":[{"name":"video-studio","source":"./plugins/video-studio","description":"40 free video-editing styles plus the shared engine: captions, jump cuts, text behind the speaker, motion graphics, sound and grade."}]}
