@@ -15,6 +15,7 @@ Run any genre with any skin: `wedding-highlight` + `doc-real`, or `retention-ree
 
 | layer | what it decides | examples |
 | --- | --- | --- |
+| **Director** (the boss) | watches and listens to the footage, picks the genre, skin, format, platform and clean-up | `video-director` |
 | **Genre skill** (editorial logic) | structure, pacing, cut rules, transitions, sound, loudness, deliverables | `podcast-episode`, `wedding-india`, `trailer-teaser` |
 | **Style skin** (the look) | caption style, fonts, colours, graphics, default look | `halo-cut`, `essay-mode`, `news-desk` |
 | **Core** (engine + editor brain) | transcription, cuts, timeline, reframe, colour, motion, sound, delivery, QC | `video-studio-core` |
@@ -66,7 +67,15 @@ It prints an exact fix for anything missing. It also checks the FFmpeg filters v
 
 ## Use it
 
-Put the footage in a folder, open Claude there and ask. Name a genre skill, a skin, or both.
+**Easiest: just hand over the footage.** The `video-director` skill reads it before deciding anything. It measures speech, language, faces, music and beat, screen-recording look, shot rate, light, orientation and length. It then picks the genre skill, skin, format and platform, and runs the whole edit:
+
+> Edit this video. *(any clip, folder of clips, photos, voice recording or song)*
+
+> Make something good for Instagram from the `trip/` folder and `song.mp3`.
+
+`python CORE/scripts/director.py FILES --goal "..."` writes `director.md` with the facts, the ranked choices with reasons, and the exact `run.py` command.
+
+**Or choose yourself.** Name a genre skill, a skin, or both.
 
 > Make a 30-second reel from `talk.mp4` with **retention-reel** and the **halo-cut** skin. Hook: "I quit my job for this". Deliver Reels, TikTok and Shorts.
 

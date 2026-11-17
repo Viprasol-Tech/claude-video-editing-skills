@@ -6,6 +6,11 @@ v2 turns the pack from 40 caption styles into a complete editor. Genre skills no
 
 ### Added
 
+**Director (the boss skill)**
+
+- `video-director` skill + `director.py`: hand over any footage and it reads it first (speech coverage, wpm and language from a faster-whisper probe, faces and face size via MediaPipe, beat steadiness, screen-recording look, shot rate, light, orientation, durations, photo/clip/audio counts). It scores all 42 genre skills with reasons, weighs the user's goal above the footage, and writes `director.md` plus a ready `run.py` command (genre, skin, format, platform, clean-up flags). Claude makes the final call and runs the chosen genre skill end to end.
+- `editor.py` cut review: wordless montages are judged on rhythm, not on "mid-thought" speech cuts. On timeline assemblies, only joins within the same source count as jump cuts.
+
 **Engine modules (video-studio-core)**
 
 - **Editor brain** (`editor.py`, `genres.json`): 69 genre presets covering pacing, ASL range, cut rules, captions, music, SFX density, allowed transitions, hook rules, structure beats, loudness and safe zones. Includes Rule-of-Six-lite cut scoring, pacing, retention, overlay and caption checks, and `review --fix` for safe automatic fixes.

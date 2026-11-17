@@ -55,6 +55,7 @@ python CORE/scripts/qc.py edit-x/final.mp4 --plan edit-x/plan.json              
 | `finish.py` | texture (grain, halation, letterbox...), legal levels, dialogue chain, SFX, music duck, loudness | audio.md |
 | `audio_chain.py` / `beats.py` / `music_fit.py` / `tts.py` / `stems.py` | mix graph, 49 synthesized SFX, beats, music cut to length, offline voice-over, stems | audio.md |
 | `deliver.py` / `export_edl.py` / `qc.py` | platform presets, subtitles, chapters, thumbnails, post pack; EDL/FCPXML/OTIO; QC | delivery.md |
+| `director.py` | reads any footage and recommends genre skill, skin, format, platform and the run.py command (used by the video-director skill) | |
 | `clip_candidates.py` / `multicam.py` | best moments in long video; switch cameras by who talks | |
 
 Genre presets: `python CORE/scripts/editor.py genres` (pacing, cut rules, captions, loudness, deliverables per genre).

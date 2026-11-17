@@ -171,6 +171,21 @@ def join_times(plan, work=None):
     return [s["out_start"] for s in segs if s.get("out_start", 0) > 0.05]
 
 
+def jump_joins(plan, work=None):
+    """Joins that are real jump cuts: every autocut join, but on a timeline assembly only joins between two pieces
+    of the same source clip (a change to another clip/photo is a shot change, not a jump cut)."""
+    work = work or plan.get("_work")
+    p = os.path.join(work, "cutlist.json") if work else None
+    if not p or not os.path.exists(p):
+        return []
+    with open(p, encoding="utf-8") as f:
+        cl = json.load(f)
+    segs = cl.get("segments", [])
+    if cl.get("kind") != "timeline":
+        return [s["out_start"] for s in segs if s.get("out_start", 0) > 0.05]
+    return [b["out_start"] for a, b in zip(segs, segs[1:]) if a.get("src") == b.get("src")]
+
+
 def word_index_at(words, t):
     return next((i for i, w in enumerate(words) if w["start"] >= t - 0.02), None)
 
@@ -188,8 +203,12 @@ def _issue(cat, sev, msg, fix=None):
     cat["score"] = max(0, cat["score"] - SEV[sev])
 
 
-def check_cuts(plan, g, joins):
+def check_cuts(plan, g, joins, jumps=None):
     cat, words = _cat(), plan.get("words", [])
+    jumps = joins if jumps is None else jumps
+    if not words:  # music/photo montage: nothing spoken to cut mid-thought; rhythm is judged in pacing
+        cat["notes"].append(f"{len(joins)} cuts, no dialogue: cut points judged by pacing/beat only")
+        joins = []
     scores = []
     asl = tuple(g["asl_s"])
     prev_t = 0.0
@@ -206,9 +225,9 @@ def check_cuts(plan, g, joins):
     if scores:
         cat["notes"].append(f"{len(scores)} cuts, mean Rule-of-Six score {sum(scores) / len(scores):.0f}/100")
     allowed = " ".join(g["transitions"]["allowed"])
-    if joins and "jump" not in allowed:
+    if jumps and "jump" not in allowed:
         covered = _visual_times(plan, include_cuts=False)
-        bare = [t for t in joins if not any(abs(t - c) < 0.35 for c in covered) and not _in_cutaway(plan, t)]
+        bare = [t for t in jumps if not any(abs(t - c) < 0.35 for c in covered) and not _in_cutaway(plan, t)]
         if bare:
             _issue(cat, "med", f"{len(bare)} jump cuts uncovered ({', '.join(f'{t:.1f}' for t in bare[:6])}s); "
                    f"{g['name']} hides interview cuts", "cover with B-roll (cutaways, >=0.5 s each side), an alternate angle or a >=1.2x punch-in")
@@ -407,7 +426,7 @@ def review(plan, g=None, work=None):
     g = g or (load_genre(plan["genre"]) if plan.get("genre") in genres() else guess_genre(plan))
     joins = join_times(plan, work)
     cats = {"retention": check_retention(plan, g, joins), "pacing": check_pacing(plan, g, joins),
-            "overlays": check_overlays(plan, g), "captions": check_captions(plan, g), "cuts": check_cuts(plan, g, joins)}
+            "overlays": check_overlays(plan, g), "captions": check_captions(plan, g), "cuts": check_cuts(plan, g, joins, jump_joins(plan, work))}
     wts = {"retention": 30, "pacing": 25, "overlays": 20, "captions": 15, "cuts": 10}
     overall = round(sum(cats[k]["score"] * w for k, w in wts.items()) / sum(wts.values()))
     return {"genre": g["name"], "overall": overall, "categories": cats, "_g": g}
