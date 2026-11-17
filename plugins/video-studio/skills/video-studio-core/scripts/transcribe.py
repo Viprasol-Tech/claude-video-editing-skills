@@ -17,6 +17,7 @@ ap.add_argument("--audio", default=None)
 ap.add_argument("--model", default="small")
 ap.add_argument("--language", default=None)
 ap.add_argument("--from-srt", default=None)
+ap.add_argument("--no-vad", action="store_true", help="keep Whisper's voice filter off (dialects, singing, noisy outdoor speech it may skip)")
 ap.add_argument("--prompt", default=None, help="initial prompt: names/jargon to spell correctly")
 a = ap.parse_args()
 out_path = os.path.join(a.work, "transcript.json")
@@ -82,7 +83,7 @@ def load_pcm(path):
     return np.frombuffer(p.stdout, dtype=np.float32)
 
 
-segments, info = model.transcribe(load_pcm(audio), word_timestamps=True, language=a.language, vad_filter=True,
+segments, info = model.transcribe(load_pcm(audio), word_timestamps=True, language=a.language, vad_filter=not a.no_vad,
                                   initial_prompt=a.prompt, condition_on_previous_text=False)
 words, segs = [], []
 for seg in segments:
@@ -91,6 +92,19 @@ for seg in segments:
         t = w.word.strip()
         if t:
             words.append({"w": t, "start": round(w.start, 3), "end": round(w.end, 3), "p": round(w.probability, 3)})
+# Whisper sometimes hallucinates on short or dialect clips: symbol-only tokens ("༼") or the same token repeated
+# many times. Drop tokens with no letters/digits and any run of >3 identical tokens.
+import re as _re
+_clean, _run = [], 0
+for _w in words:
+    if not _re.search(r"\w", _w["w"]):
+        continue
+    _run = _run + 1 if _clean and _clean[-1]["w"] == _w["w"] else 0
+    if _run < 3:
+        _clean.append(_w)
+if len(_clean) < len(words):
+    log(f"dropped {len(words) - len(_clean)} hallucinated/repeated tokens")
+words = _clean
 # Whisper splits "$10,000" -> "$10" ",000." and "50%" -> "50" "%": glue them so captions/counters see one word
 from captions import merge_tokens
 words = [dict(m, start=round(m["start"], 3), end=round(m["end"], 3)) for m in merge_tokens(words)]

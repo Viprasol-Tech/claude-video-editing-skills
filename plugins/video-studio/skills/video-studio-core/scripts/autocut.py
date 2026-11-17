@@ -157,6 +157,32 @@ def quietest(rms, lo, hi):
     return (a + int(r[a:b].argmin())) * hop + hop / 2
 
 
+def keep_loud_gaps(segs, rms, words, dur, min_gap=0.5, margin_db=12.0):
+    """Never cut sound you haven't heard: a word-free gap that is about as loud as the speech (singing,
+    untranscribed dialect, music, laughter) is kept, not removed as a pause. Real pauses are 15-40 dB quieter."""
+    import numpy as np
+    r, hop = rms
+    db = 20 * np.log10(r + 1e-9)
+    sp = [db[int(w["start"] / hop):int(w["end"] / hop) + 1] for w in words]
+    sp = np.concatenate([x for x in sp if len(x)]) if any(len(x) for x in sp) else db
+    speech = float(np.median(sp))
+    loud = lambda a, b: b - a >= min_gap and float(np.median(db[int(a / hop):int(b / hop) + 1])) > speech - margin_db
+    out = [list(x) for x in segs]
+    if out and loud(0.0, out[0][0]):
+        out[0][0] = 0.0
+    merged = [out[0]] if out else []
+    for sg in out[1:]:
+        if loud(merged[-1][1], sg[0]):
+            merged[-1][1], merged[-1][3] = sg[1], sg[3]
+        else:
+            merged.append(sg)
+    if merged and loud(merged[-1][1], dur):
+        merged[-1][1] = dur
+    if [tuple(x) for x in merged] != list(segs):
+        log(f"kept loud word-free audio (singing/music/untranscribed speech): {len(segs)} -> {len(merged)} segments")
+    return [tuple(round(v, 3) if isinstance(v, float) else v for v in x) for x in merged]
+
+
 # ---------------- segments ----------------
 def build_segments(words, removed, dur, max_gap, lead, tail, manual, rms=None):
     """Keep-segments in source time, plus a list of kept word index groups per segment."""
@@ -383,6 +409,9 @@ def main():
         if smart and rms is None:
             log("smart cuts: no audio analysis available (numpy / audio16k.wav), using padded word edges")
         segs = build_segments(words, removed, dur, max_gap, lead, pad, manual, rms)
+        rms_all = rms or load_rms(a.work, src)
+        if rms_all and segs and not manual:
+            segs = keep_loud_gaps(segs, rms_all, [w for i, w in enumerate(words) if i not in removed], dur)
     if not segs:
         segs = [(0.0, round(dur, 3), 0, max(0, len(words) - 1))]
 
