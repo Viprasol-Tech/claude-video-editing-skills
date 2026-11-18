@@ -10,6 +10,8 @@ review(), apply_fixes(), snap_to_beats(), load_beats(), compact_track(), apply_g
 All scores are heuristics that encode editing conventions (see references/craft.md). They flag, they don't decide.
 """
 import copy, json, os, re, shutil, sys
+from vs_common import norm          # Indic-safe word key (keeps Devanagari vowel signs); story.py uses editor.norm
+from captions import glen           # on-screen length in grapheme clusters
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GENRES_PATH = os.path.join(HERE, "genres.json")
@@ -42,11 +44,7 @@ def guess_genre(plan):
 
 
 # ---------------- text helpers ----------------
-def norm(s):
-    return re.sub(r"[^\w'%$]", "", str(s).lower())
-
-
-ENDS = re.compile(r"[.!?…]['\")]*$")
+ENDS = re.compile(r"[.!?…।॥]['\")]*$")   # incl. Devanagari danda / double danda
 GREETING = re.compile(r"^\s*(hi|hey|hello|yo|namaste|what'?s up|welcome( back)?|good (morning|evening|afternoon))\b|"
                       r"\b(hi|hey|hello) (guys|everyone|everybody|friends|all)\b|\bwelcome (back )?to (my|the|our)\b|"
                       r"\bin (this|today'?s) video\b|\btoday (we|i)('re| are| am|'m)? (going to|gonna)\b|\bbefore we (start|begin)\b|"
@@ -82,7 +80,7 @@ def sentences(words, gap=0.6):
 
 
 def text_of(words, idx):
-    return re.sub(r"\s+([,.!?%])", r"\1", " ".join(words[i]["w"] for i in idx)).strip()
+    return re.sub(r"\s+([,.!?%।॥])", r"\1", " ".join(words[i]["w"] for i in idx)).strip()
 
 
 def hook_score(text):
@@ -382,7 +380,7 @@ def check_overlays(plan, g):
             if e.get("layer") == "behind" or not isinstance(e.get("y"), (int, float)):
                 continue
             ex, ey = (e["x"] if isinstance(e.get("x"), (int, float)) else W / 2), e["y"]
-            ew = e["w"] if isinstance(e.get("w"), (int, float)) else min(W * 0.9, 45 * max(4, len(el_text(e))))
+            ew = e["w"] if isinstance(e.get("w"), (int, float)) else min(W * 0.9, 45 * max(4, glen(el_text(e))))
             eh = e["h"] if isinstance(e.get("h"), (int, float)) else 140
             for f in faces:
                 if s <= f["t"] <= en and abs(ex - (f["x"] + f["w"] / 2)) < (ew + f["w"]) / 2 and abs(ey - (f["y"] + f["h"] / 2)) < (eh + f["h"]) / 2:
@@ -410,11 +408,11 @@ def check_captions(plan, g):
     for k in range(0, len(words), n):
         ch = words[k:k + n]
         span = max(0.2, ch[-1]["end"] - ch[0]["start"])
-        cps = sum(len(w["w"]) for w in ch) / span
+        cps = sum(glen(w["w"]) for w in ch) / span
         if cps > lim:
             fast.append((ch[0]["start"], cps))
     speak = sum(w["end"] - w["start"] for w in words)
-    cat["notes"].append(f"speech {sum(len(w['w']) for w in words) / max(0.1, speak):.1f} chars/s while talking, limit {lim} cps, {n} words per caption")
+    cat["notes"].append(f"speech {sum(glen(w['w']) for w in words) / max(0.1, speak):.1f} chars/s while talking, limit {lim} cps, {n} words per caption")
     if len(fast) > max(1, len(words) // (n * 5)):
         _issue(cat, "low", f"{len(fast)} caption groups exceed {lim} cps (first at {fast[0][0]:.1f}s, {fast[0][1]:.0f} cps)",
                "fewer words per group (word-pop) or loosen the cut (--max-gap / --breath) so lines can be read")

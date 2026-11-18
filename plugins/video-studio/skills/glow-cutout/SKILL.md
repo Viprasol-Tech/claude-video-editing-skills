@@ -26,6 +26,8 @@ This style runs on the **video-studio-core** skill, which must be installed in t
 
 ```bash
 python CORE/scripts/run.py clip.mp4 --style STYLE --work edit-glow-cutout --stop-after plan
+# run.py applies the skin's scene recipe; after editing words or the title in plan.json, re-run it:
+python CORE/scripts/sequence.py edit-glow-cutout/plan.json --recipe aurora
 # refine edit-glow-cutout/plan.json (see below), then check stills:
 python CORE/scripts/render.py edit-glow-cutout/plan.json --frames 1,3,6,9
 python CORE/scripts/render.py edit-glow-cutout/plan.json
@@ -41,6 +43,21 @@ Open `contact_sheet.png` and look at it before the full render. Pass `--title ".
 - A short title stays at the top: sans-serif with one word in gold italic serif (wrap it: `<i>word</i>`, element `html: true`).
 - Captions: 2-3 words in a dark pill, uppercase, the spoken word turns gold.
 - Key words pop as small glass cards top-left. Film grade, light grain.
+
+## The scenes (aurora recipe)
+
+`sequence.py PLAN --recipe aurora` turns the draft into alternating scenes, one per phrase (sentence, danda, or comma + pause):
+
+- **Speaker scene** (phrase 1, 3, ...): you with the gold glow over the blurred shot, the caption chip (spoken word gold,
+  the phrase's key word in gold italic serif) and a small dark-glass card top-left: tiny gold `01 / 04` + the key word,
+  landing on that word.
+- **Quote scene** (phrase 2, 4, ...): you are hidden; the same footage, blurred and darkened, fills the frame with a warm glow,
+  the phrase as one big line (key word in gold italic serif) and a tiny gold `02 / 04` kicker. A phrase shorter than 1.2 s stays on you.
+- The title stays on top the whole time. A plain title gets its key word in gold italic; write your own `<i>word</i>` to choose it.
+- Scene changes get a soft blur and a whoosh. The key word is the longest of the last three words, skipping a refrain
+  (a word heard in 2+ phrases). Fix the words in `plan.json` first if it picked the wrong one, then re-run the recipe.
+- Re-running replaces everything the recipe wrote (`"_seq": true` elements, sfx, cutaways, blurs); hand-added items stay.
+  It replaces the skin's auto key-word cards (`gc-card`) and captions with its own.
 
 ## Refine the plan
 

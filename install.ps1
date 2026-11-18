@@ -10,7 +10,7 @@ Get-ChildItem $Src -Directory | ForEach-Object {
 }
 Write-Host ""
 Write-Host "Now install the tools once:"
-Write-Host "  pip install faster-whisper playwright numpy pillow opencv-python mediapipe"
+Write-Host "  pip install faster-whisper playwright numpy pillow opencv-contrib-python mediapipe fastapi uvicorn fonttools"
 Write-Host "  python -m playwright install chromium"
 Write-Host "  winget install ffmpeg"
 Write-Host "Check: python `"$Dest\video-studio-core\scripts\check_env.py`""

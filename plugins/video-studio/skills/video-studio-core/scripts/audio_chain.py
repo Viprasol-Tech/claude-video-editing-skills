@@ -27,7 +27,7 @@ one short synth function per sound.
 """
 import argparse, hashlib, json, math, os, re, struct, subprocess, sys, tempfile, zlib
 import numpy as np
-from vs_common import _compat, die, log, need, probe, run
+from vs_common import _compat, die, load_json, log, need, probe, run
 
 SR = 48000
 
@@ -66,6 +66,7 @@ def ff_path(p):
 
 # ---------------------------------------------------------------- dialogue chain
 VOICE_HPF = {"male": 80, "female": 110, "auto": 80}
+WIND_HPF, BUTTER4_Q = 100, (0.5412, 1.3066)  # phone/outdoor: 4th-order Butterworth (24 dB/oct) = two biquads
 # (freq, width_type, width, gain_dB) per preset; body/mud move up for female voices.
 EQ = {
     "clear": lambda b, m: [(m, "q", 1.0, -3), (900, "q", 1.4, -1.5), (3500, "q", 1.0, 2.5), (11000, "h", 3000, 1.5)],
@@ -82,13 +83,17 @@ def voice_chain(cfg=None):
     EQ -> de-ess -> gate -> compressor -> soft limiter.
     cfg (all optional): {"denoise": true|"light"|"strong"|false, "rnnoise": "model.rnnn", "dehum": 50|60,
       "deess": true|0..1, "declick": true, "eq": "clear|warm|broadcast|phone|radio|off", "compress": true,
-      "gate": false, "voice": "male|female|auto", "hpf": Hz}
+      "gate": false, "voice": "male|female|auto", "hpf": Hz, "wind": true}
+    "wind" (default true): wind/handling-rumble high-pass, 4th order at max(voice HPF, 100 Hz) - phone and
+    outdoor audio keep most of their noise below 100 Hz. false: gentle 2nd order at the voice HPF (studio mic).
     Defaults: light denoise + highpass + compress. cfg False -> "anull"."""
     if cfg is False:
         return "anull"
     c = dict(cfg or {})
     voice = c.get("voice", "auto")
-    f = [f"highpass=f={c.get('hpf', VOICE_HPF.get(voice, 80))}:p=2"]
+    wind = c.get("wind", True)
+    hz = c.get("hpf", max(VOICE_HPF.get(voice, 80), WIND_HPF if wind else 0))
+    f = [f"highpass=f={hz}:p=2:t=q:w={q}" for q in BUTTER4_Q] if wind else [f"highpass=f={hz}:p=2"]
     if c.get("dehum"):
         base = int(c["dehum"])
         f += [f"equalizer=f={base * k}:t=q:w=30:g=-30" for k in range(1, 5)]
@@ -974,7 +979,8 @@ def build_mix_graph(plan, info, dur, platform=None, pdir=".", work=None, first_i
     gain + limiter, so the result hits the target within ~0.3 LU; otherwise single-pass loudnorm (+/-1-2 LU).
     Returns (extra_inputs, filter_lines, "[aout]"): append extra_inputs after "-i composite", join
     filter_lines with ";\\n" into the -filter_complex script, map "[aout]".
-    Plan fields: "audio": {"voice": cfg|false, "platform", "lufs", "tp", "lra", "roomTone"}, "roomTone": true,
+    Plan fields: "audio": {"voice": cfg|false, "platform", "lufs", "tp", "lra", "roomTone"}, "roomTone": true|false
+    (unset = on whenever an autocut cutlist.json has joins),
     "sfx": [{t, kind, gain, file?}], "music": {src, volume|under, duck, start, fadeOut, fitTo, endButton, ...},
     "words": [...] (for speech-aware ducking)."""
     work = work or pdir
@@ -1000,8 +1006,11 @@ def build_mix_graph(plan, info, dur, platform=None, pdir=".", work=None, first_i
         raw = "[0:a]aformat=sample_rates=48000:channel_layouts=stereo"
         rt = A.get("roomTone", plan.get("roomTone"))
         cut = os.path.join(work, "cutlist.json")
-        if rt and os.path.exists(cut):
-            joins = [s["out_start"] for s in json.load(open(cut, encoding="utf-8"))["segments"][1:]]
+        cl = load_json(cut) if os.path.exists(cut) else None
+        if rt is None and cl:  # autocut joins get room tone unless the plan says no; timelines have own transitions
+            rt = cl.get("kind") != "timeline"
+        if rt and cl:
+            joins = [s["out_start"] for s in cl["segments"][1:]]
             rt_path = os.path.join(work, "roomtone.wav")
             floor = room_tone(src_path, rt_path) if src_path else None
             if floor is not None and joins:

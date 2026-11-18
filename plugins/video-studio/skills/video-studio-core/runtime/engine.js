@@ -340,6 +340,11 @@
   };
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const escBr = s => esc(s).replace(/\n/g, "<br>");
+  // Grapheme clusters, not code points: a Devanagari matra / virama conjunct or an emoji sequence never splits.
+  const GSEG = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  const graphemes = s => Array.from(GSEG.segment(String(s)), g => g.segment);
+  const glen = s => graphemes(s).length;
+  const SENT_END = /[.!?।॥]$/, PHRASE_END = /[.!?,;:।॥]$/;   // incl. Devanagari danda / double danda (mirrors vs_common.SENT_END)
   const styleObj = (n, o) => { if (o) for (const k in o) n.style.setProperty(k.startsWith("--") ? k : k.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), o[k]); };
   const px = v => (typeof v === "number" ? v + "px" : v);
   const anchorShift = a => { a = a || "center"; return [a.includes("left") ? 0 : a.includes("right") ? -100 : -50, a.includes("top") ? 0 : a.includes("bottom") ? -100 : -50]; };
@@ -409,12 +414,12 @@
     const el = pre ? Object.assign({}, pre, elIn, { className: ["cap-preset-" + elIn.preset, elIn.className].filter(Boolean).join(" ") }) : elIn;
     const words = (el.words || P.words || []).filter(w => w.w && w.w.trim());
     const maxWords = el.maxWords || 3, maxChars = el.maxChars || 22, gap = el.breakGap || 0.45;
-    const punctRe = el.breakOnPunct === "sentence" ? /[.!?]$/ : /[.!?,;:]$/;
+    const punctRe = el.breakOnPunct === "sentence" ? SENT_END : PHRASE_END;
     let groups = []; let cur = [];
     const flush = () => { if (cur.length) groups.push(cur); cur = []; };
     words.forEach((w, i) => {
       const prev = words[i - 1];
-      const chars = cur.reduce((a, b) => a + b.w.length + 1, 0) + w.w.length;
+      const chars = cur.reduce((a, b) => a + glen(b.w) + 1, 0) + glen(w.w);
       if (cur.length && (cur.length >= maxWords || chars > maxChars || (prev && w.start - prev.end > gap))) flush();
       cur.push(w);
       if (punctRe.test(w.w.trim()) && el.breakOnPunct !== false) flush();
@@ -431,7 +436,7 @@
     for (let pass = 0; cpsMax > 0 && pass < 4; pass++) {
       let changed = false; const out = [];
       groups.forEach(g => {
-        const chars = g.reduce((a, w) => a + w.w.trim().length, 0) + g.length - 1;
+        const chars = g.reduce((a, w) => a + glen(w.w.trim()), 0) + g.length - 1;
         const d = Math.max(0.05, g.e - g.s), m = Math.ceil(g.length / 2);
         if (g.length > 1 && chars / d > cpsMax && g[m].start - g.s >= minDur && g.e - g[m].start >= minDur) { out.push(g.slice(0, m), g.slice(m)); changed = true; }
         else out.push(g);
@@ -457,7 +462,7 @@
     let built = -1, spans = [], fills = [], emos = [];
     const fmt = s => {
       let x = s.trim();
-      if (el.stripPunct !== false) x = x.replace(/[.,;:!?"]+$/g, "").replace(/^["]+/, "");
+      if (el.stripPunct !== false) x = x.replace(/[.,;:!?"।॥]+$/g, "").replace(/^["]+/, "");
       if (el.uppercase) x = x.toUpperCase();
       if (el.lowercase) x = x.toLowerCase();
       return x;
@@ -573,7 +578,7 @@
         return;
       }
       const wg = h("span", "word-group", inner);
-      Array.from(tok).forEach(ch => cells.push(make(wg, ch, cells.length)));
+      graphemes(tok).forEach(ch => cells.push(make(wg, ch, cells.length)));
     });
     return cells;
   }
@@ -582,7 +587,7 @@
   FX.typewriter = (el, inner, txt, fx) => {
     inner.innerHTML = "";
     const on = h("span", "tw-on", inner), car = h("span", "tw-caret", inner, `<i>${esc(fx.caret || "|")}</i>`), off = h("span", "tw-off", inner);
-    const chars = Array.from(txt), N = chars.length, cps = fx.cps || 18, delay = fx.delay || 0;
+    const chars = graphemes(txt), N = chars.length, cps = fx.cps || 18, delay = fx.delay || 0;
     if (fx.caret === false) car.style.display = "none";
     off.textContent = txt; let last = 0;
     return {
@@ -640,9 +645,9 @@
     const delay = fx.delay != null ? fx.delay : defDelay, dur = fx.dur || defDur, ez = easeFn(fx.ease || "cubicOut", dur) || E.out;
     if (cls === "fx-st") {
       // strike must sit over the glyphs: one ::after per word, swept in sequence by character share
-      const ws = m.textContent.split(/\s+/).filter(Boolean), total = ws.reduce((a, w) => a + w.length, 0) || 1;
+      const ws = m.textContent.split(/\s+/).filter(Boolean), total = ws.reduce((a, w) => a + glen(w), 0) || 1;
       m.innerHTML = ws.map(w => `<span class="fx-st-w">${esc(w)}</span>`).join(" ");
-      let off = 0; const parts = Array.from(m.children).map((n, i) => { const o = { n, a: off / total, b: (off + ws[i].length) / total }; off += ws[i].length; return o; });
+      let off = 0; const parts = Array.from(m.children).map((n, i) => { const o = { n, a: off / total, b: (off + glen(ws[i])) / total }; off += glen(ws[i]); return o; });
       return { update(lt) { const K = ez(clamp((lt - delay) / dur)); parts.forEach(q => q.n.style.setProperty("--k", clamp((K - q.a) / ((q.b - q.a) || 1)).toFixed(4))); } };
     }
     return { update(lt) { m.style.setProperty("--k", ez(clamp((lt - delay) / dur)).toFixed(4)); } };
@@ -729,7 +734,7 @@
         if (el.split === "words") { parts.push(h("span", "unit", inner, esc(tok))); return; }
         const wg = h("span", "word-group", inner);
         wg.style.whiteSpace = "nowrap"; wg.style.display = "inline-block";
-        Array.from(tok).forEach(ch => parts.push(h("span", "unit", wg, esc(ch))));
+        graphemes(tok).forEach(ch => parts.push(h("span", "unit", wg, esc(ch))));
       });
     } else if (lineMode) {
       if (txt.includes("\n")) { buildLines(txt.split("\n")); linesBuilt = true; } else inner.innerHTML = esc(txt);
@@ -1066,7 +1071,7 @@
   C.burst = function (el, root) {
     const e2 = Object.assign({ w: 10, h: 10, in: "none", out: "none" }, el);
     const { outer, inner } = base(e2, root);
-    const chars = Array.from(el.chars || "✨");
+    const chars = graphemes(el.chars || "✨");
     const n = el.count || 8;
     const ps = []; for (let i = 0; i < n; i++) ps.push(h("span", "burst-p", inner, esc(chars[i % chars.length])));
     return {
@@ -1291,7 +1296,7 @@
     const ph = el.placeholder ? h("span", "sb-ph", field, esc(el.placeholder)) : null;
     const on = h("span", "sb-text", field), cur = h("span", "sb-cursor", field);
     const res = h("div", "sb-results", inner);
-    const q = String(el.query || ""), qc = Array.from(q), cps = el.cps || 14, delay = el.delay != null ? el.delay : 0.35;
+    const q = String(el.query || ""), qc = graphemes(q), cps = el.cps || 14, delay = el.delay != null ? el.delay : 0.35;
     const qre = q ? new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
     const items = (el.results || []).map(r => {
       const s = String(r), m = qre && s.match(qre);
@@ -1638,7 +1643,7 @@
       (P.words || []).forEach((w, i, arr) => {
         if (cur.length && (cur.length >= maxW || w.start - arr[i - 1].end > 0.6)) { lines.push(cur); cur = []; }
         cur.push(w);
-        if (/[.!?]$/.test(w.w.trim())) { lines.push(cur); cur = []; }
+        if (SENT_END.test(w.w.trim())) { lines.push(cur); cur = []; }
       });
       if (cur.length) lines.push(cur);
       lines = lines.map((ws, i, arr) => ({ text: ws.map(w => w.w).join(" "), start: ws[0].start, end: Math.min(ws[ws.length - 1].end + 0.4, arr[i + 1] ? arr[i + 1][0].start : 1e9), words: ws }));
@@ -1997,6 +2002,7 @@
   // =====================================================================
   const themeVars = P.theme && P.theme.vars;
   if (themeVars) styleObj(document.documentElement, themeVars);
+  if (/[\u0900-\u097F]/.test(JSON.stringify(P))) document.documentElement.lang = "hi";   // base.css :lang(hi) rules for Devanagari
   document.documentElement.style.setProperty("--W", W + "px");
   document.documentElement.style.setProperty("--H", H + "px");
   const roots = {};

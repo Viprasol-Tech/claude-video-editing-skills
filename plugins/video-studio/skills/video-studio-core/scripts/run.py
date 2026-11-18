@@ -62,6 +62,7 @@ ap.add_argument("--retakes", action="store_true")
 ap.add_argument("--broll", default=None, help="folder of b-roll clips/images")
 ap.add_argument("--platform", default=None)
 ap.add_argument("--deliver", default=None, help="comma list of deliver.py presets")
+ap.add_argument("--no-sequence", action="store_true", help="skip the skin's scene recipe (sequence.py)")
 ap.add_argument("--stop-after", choices=["timeline", "reframe", "prep", "transcribe", "cut", "matte", "plan", "broll", "render", "finish", "qc"], default=None)
 a = ap.parse_args()
 
@@ -135,8 +136,12 @@ if a.title: mp += ["--title", a.title]
 for k in ("clip", "image", "image2", "logo"):
     if getattr(a, k): mp += ["--" + k, getattr(a, k)]
 if a.genre: mp += ["--genre", a.genre]
-step("plan", mp)
 plan = os.path.join(a.work, "plan.json")
+if theme.get("sequence") and not a.no_sequence:   # the skin's scene recipe turns the draft into a designed edit
+    step("plan-draft", mp)
+    step("plan", ["sequence.py", plan, "--recipe", theme["sequence"]])
+else:
+    step("plan", mp)
 if a.music and a.auto != "montage":
     p = json.load(open(plan, encoding="utf-8"))
     p["music"] = dict(p.get("music") or {}, src=os.path.abspath(a.music))

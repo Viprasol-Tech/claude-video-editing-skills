@@ -84,20 +84,30 @@ hack hidden simple wrong right crazy insane biggest important first last only no
 win lose fail growth rich broke results proof real fake""".split())
 import unicodedata
 # keep letters, digits and combining marks (Devanagari/Indic vowel signs are category M, not \w)
-clean = lambda s: "".join(ch for ch in s.lower() if ch.isalnum() or ch in "%$'.,_" or unicodedata.category(ch).startswith("M")).strip(".,")
+clean = lambda s: "".join(ch for ch in unicodedata.normalize("NFC", s).lower() if ch.isalnum() or ch in "%$'.,_"
+                          or unicodedata.category(ch).startswith("M")).strip(".,")
+# Hindi / Haryanvi function words, pronouns, fillers and the refrain "बरगी" (like): never key words
+STOP |= {clean(x) for x in """है हैं था थी थे हो हूँ हूं में मैं भी एक ए का की के को से और तो ना न नहीं वा हर ये यह वह वो
+जो कि पर ने तू तुम आप हम मेरा मेरी मेरे तेरा तेरी तेरे इस उस कोई कुछ बस भाई यार बरगी सै सूं सा सी रे री जी हाँ हां अब जब
+तब फिर कर करके रहा रही रहे गया गई गए म्हारा म्हारी थारा थारी कोनी""".split()}
+glen = lambda s: sum(1 for ch in s if not unicodedata.category(ch).startswith("M"))   # visible length (aksharas)
 NUM = re.compile(r"^(\$|₹|€|£)?(\d[\d,]*(\.\d+)?)(k|m|b|x|%)?$", re.I)
 
 
 def score(w, i):
     c = clean(w["w"])
-    if not c or c in STOP or len(c) < 3 and not NUM.match(c):
+    caseless = any(unicodedata.category(ch) == "Lo" for ch in c)   # Devanagari etc.: no capital / proper-noun cue
+    g = glen(c)
+    if not c or c in STOP or g < (2 if caseless else 3) and not NUM.match(c):
         return 0
     s = 1.0
     if NUM.match(c): s += 5
     if c in STRONG: s += 4
-    if len(c) >= 7: s += 1.5
+    if caseless: s += 1.0 + 0.5 * min(g, 5)   # every content word clears minScore 2.5; longer words rank higher
+    elif g >= 7: s += 1.5
     if w["w"][:1].isupper() and i > 0 and not re.search(r"[.!?]$", words[i - 1]["w"]): s += 1.5
     if w["w"].isupper() and len(c) > 1: s += 2
+    if i in LAST_LINE: s += 2                 # genre emphasis "last-line": the punch line of a shayari / poem
     return s
 
 
@@ -108,13 +118,15 @@ def sentences():
             out.append(cur); cur = []
         cur.append(i)
         nxt_gap = words[i + 1]["start"] - w["end"] if i + 1 < len(words) else 0
-        if re.search(r"[.!?।॥]$", w["w"]) or (w["w"].endswith(",") and nxt_gap >= 0.3):
+        new_line = i + 1 < len(words) and words[i + 1].get("line", w.get("line")) != w.get("line")   # transcribe.py --text
+        if re.search(r"[.!?।॥]$", w["w"]) or (w["w"].endswith(",") and nxt_gap >= 0.3) or new_line:
             out.append(cur); cur = []
     if cur: out.append(cur)
     return out
 
 
 SENTS = sentences()
+LAST_LINE = set(SENTS[-1]) if SENTS and (GENRE or {}).get("emphasis") == "last-line" else set()
 
 
 def disp(w):
@@ -247,7 +259,7 @@ if auto.get("headlines") and words:
             txt = txt.upper()
         s = words[sidx[0]]["start"]
         nxt = SENTS[n + 1] if n + 1 < len(SENTS) else None
-        e_t = words[nxt[0]]["start"] if nxt else min(dur, words[sidx[-1]]["end"] + 0.6)
+        e_t = words[nxt[0]]["start"] if nxt else dur   # last sentence holds to the end: backdrops never drop to black
         tpl = tpls[n % len(tpls)] if tpls else []
         for gi, t1 in enumerate(tpl if isinstance(tpl, list) else [tpl]):   # a list = a group (e.g. backdrop + headline)
             e = fill(t1, text=txt)
@@ -405,6 +417,19 @@ if LAYOUTS and spk.get("mode") != "none":
     spk["layouts"] = LAYOUTS
 if spk.get("mode") != "none":
     spk["zooms"] += zooms
+# matte.py edge contact (share of each border the person touches): a shrunk cut-out (personScale < 1) would show
+# hard side edges, so slide it down at full width instead (personDrop keeps the sides at the frame edges)
+_mj = os.path.join(work, "matte.json")
+if os.path.exists(_mj) and spk.get("mode") != "none":
+    _m = load_json(_mj)
+    edge = _m.get("edge_contact") or _m.get("edges")
+    if not isinstance(edge, dict):
+        log(f"warning: {_mj} has no edge_contact {{left,right,top,bottom}}: cut-out framing not checked")
+    elif max(edge.get("left", 0), edge.get("right", 0)) > 0.15 and spk.get("personScale", 1) < 1:
+        spk.pop("personScale")
+        spk["personDrop"] = spk.get("personDrop") or 0.12
+        log(f"person touches the side edges (left {edge.get('left', 0):.2f}, right {edge.get('right', 0):.2f}): "
+            f"personScale -> personDrop {spk['personDrop']}")
 
 matte = None
 if src and th.get("matte") and not a.no_matte:

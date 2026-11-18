@@ -15,7 +15,7 @@ video pixels or 0-1), centre crop for mild ratio changes (0.8-1.25x), otherwise 
 Outputs land in --out-dir: <name>_<preset>.<ext>, captions.srt/.vtt/.ttml, chapters.txt,
 thumb_*.png, post.md, deliver_report.json/.md.
 """
-import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
+import argparse, functools, json, math, os, re, shutil, subprocess, sys, tempfile, unicodedata
 from vs_common import load_json, save_json, probe, log, need, _compat
 import captions as C
 
@@ -128,10 +128,14 @@ def _rate(s):
 
 # ------------------------------------------------------------------ reframe
 def load_track(path, vw, vh):
-    """Primary face centre samples [(t, cx, cy, w)] in video pixels, or None if unusable for this video."""
-    if not path or not os.path.exists(path):
+    """Primary face samples [(t, cx, cy, w, h)] in video pixels, or None if unusable for this video.
+    `path` may also be an already-loaded track dict (see plan_track)."""
+    if isinstance(path, dict):
+        tr = path
+    elif not path or not os.path.exists(path):
         return None
-    tr = load_json(path)
+    else:
+        tr = load_json(path)
     if tr.get("width") and (int(tr["width"]), int(tr["height"])) != (vw, vh):
         log(f"track.json is for {tr['width']}x{tr['height']}, video is {vw}x{vh} - not used")
         return None
@@ -143,7 +147,16 @@ def load_track(path, vw, vh):
         return None
     norm = max(f["x"] + f["w"] for f in fr) <= 1.5
     sx, sy = (vw, vh) if norm else (1, 1)
-    return [(f["t"], (f["x"] + f["w"] / 2) * sx, (f["y"] + f["h"] / 2) * sy, f["w"] * sx) for f in fr]
+    return [(f["t"], (f["x"] + f["w"] / 2) * sx, (f["y"] + f["h"] / 2) * sy, f["w"] * sx, f["h"] * sy) for f in fr]
+
+
+def plan_track(plan):
+    """plan["track"] (compact primary-face boxes of plan["source"], 0-1) in track.json form, or None."""
+    fr = (plan or {}).get("track")
+    if not fr:
+        return None
+    w, h = ((plan.get("sourceSize") or []) + [None, None])[:2]
+    return {"width": w, "height": h, "faces": [{"id": 0, "frames": fr}], "primary": 0}
 
 
 def face_cmds(samples, axis_len, win, along_x, smooth=0.5):
@@ -192,18 +205,74 @@ def reframe(vw, vh, tw, th, track=None, cmd_path=None):
 
 
 # ------------------------------------------------------------------ text rendering (Pillow; no drawtext)
-FONT_CANDIDATES = ["ariblk.ttf", "impact.ttf", "arialbd.ttf", "seguibl.ttf", "DejaVuSans-Bold.ttf",
-                   "/System/Library/Fonts/Supplemental/Arial Black.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+# Per-script candidates as (file, ttc index). The first installed font that has a glyph for every character
+# of the string wins, so no tofu boxes. Pillow finds bare names in C:/Windows/Fonts, in /Library/Fonts,
+# /System/Library/Fonts and ~/Library/Fonts on macOS (recursive) and under the XDG data dirs on Linux
+# (`apt install fonts-noto-core` -> NotoSansDevanagari-Bold.ttf, `fonts-lohit-deva` -> Lohit-Devanagari.ttf).
+# Per-user Windows installs (right-click > Install) land in _UF, which Pillow does not search.
+_UF = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "Windows", "Fonts")
+LATIN_FONTS = [("ariblk.ttf", 0), ("impact.ttf", 0), ("arialbd.ttf", 0), ("seguibl.ttf", 0), ("DejaVuSans-Bold.ttf", 0),
+               ("/System/Library/Fonts/Supplemental/Arial Black.ttf", 0), ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 0)]
+INDIC_FONTS = [("NotoSansDevanagari-Bold.ttf", 0), (os.path.join(_UF, "NotoSansDevanagari-Bold.ttf"), 0),
+               ("Nirmala.ttc", 1),                                  # Windows 10/11 Nirmala UI Bold: every Indic script + Latin
+               ("Kohinoor.ttc", 0), ("ITFDevanagari.ttc", 0),       # macOS
+               ("Lohit-Devanagari.ttf", 0)]                         # Linux
+INDIC = {"DEVANAGARI", "BENGALI", "GURMUKHI", "GUJARATI", "ORIYA", "TAMIL", "TELUGU", "KANNADA", "MALAYALAM"}
+COMPLEX = INDIC | {"ARABIC", "HEBREW", "THAI"}                      # need libraqm (shaping / RTL) in Pillow
 
 
-def font(size, prefer=None):
+def script_of(text):
+    """First non-Latin script of `text` by Unicode name ('DEVANAGARI', 'ARABIC', ...), else 'LATIN'."""
+    names = (unicodedata.name(c, "").split(" ")[0] for c in text if c.isalpha())
+    return next((n for n in names if n and n != "LATIN"), "LATIN")
+
+
+@functools.lru_cache(maxsize=None)
+def _has_glyphs(name, index, chars):
+    """True when the font loads and no character of `chars` draws as its .notdef glyph (the tofu box)."""
+    from PIL import Image, ImageDraw, ImageFont
+    try:
+        f = ImageFont.truetype(name, 32, index=index)
+    except OSError:
+        return False
+
+    def ink(s):
+        im = Image.new("L", (128, 64))
+        ImageDraw.Draw(im).text((32, 8), s, font=f, fill=255)
+        return im.tobytes()
+    tofu = ink("\U0010FFFD")                                         # private-use codepoint no font maps
+    return all(ink(c) != tofu for c in chars)
+
+
+@functools.lru_cache(maxsize=None)
+def font_face(text, prefer=None):
+    """(file, ttc index) of the first installed font for the script of `text` that draws all of it
+    (None = Pillow's bundled Latin font). Raises when nothing installed covers the script."""
+    s = script_of(text)
+    chars = "".join(sorted({c for c in text if unicodedata.category(c)[0] in "LMN"}))
+    for name, idx in ([(prefer, 0)] if prefer else []) + (INDIC_FONTS if s in INDIC else []) + LATIN_FONTS:
+        if _has_glyphs(name, idx, chars):
+            return name, idx
+    if s == "LATIN":
+        return None
+    raise RuntimeError(f"no installed font draws this {s.title()} text {text[:40]!r}: install Noto Sans {s.title()}"
+                       " (Windows 10/11 ship Nirmala UI for Indic scripts)")
+
+
+def font(size, text="", prefer=None):
     from PIL import ImageFont
-    for name in ([prefer] if prefer else []) + FONT_CANDIDATES:
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
-    return ImageFont.load_default(size)
+    face = font_face(text, prefer)
+    return ImageFont.truetype(face[0], size, index=face[1]) if face else ImageFont.load_default(size)
+
+
+def shaping_note(text):
+    """Warning when `text` needs complex shaping that this Pillow build cannot do (no libraqm), else None."""
+    from PIL import features
+    s = script_of(text)
+    if s in COMPLEX and not features.check("raqm"):
+        return (f"{s.title()} text drawn by Pillow without libraqm: glyphs are right but conjuncts/matras are unshaped"
+                " (e.g. the i-matra after its consonant, visible halant). Fix: a fribidi DLL for Pillow's raqm, or browser-rendered titles.")
+    return None
 
 
 def burn_layout(w, h, safe):
@@ -218,13 +287,13 @@ def render_cue_pngs(cues, w, h, safe, folder):
     from PIL import Image, ImageDraw
     os.makedirs(folder, exist_ok=True)
     size, mv, _ = burn_layout(w, h, safe)
-    fnt = font(size, "arialbd.ttf")
     Image.new("RGBA", (w, h), (0, 0, 0, 0)).save(os.path.join(folder, "blank.png"))
     lst, t = ["ffconcat version 1.0"], 0.0
     for i, c in enumerate(cues):
         im = Image.new("RGBA", (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
         y = h - mv
         for line in reversed(c["lines"]):
+            fnt = font(size, line, "arialbd.ttf")                    # per line: Devanagari lines get an Indic font
             l, tp, r, b = d.textbbox((0, 0), line, font=fnt, stroke_width=max(2, size // 12))
             y -= (b - tp) + int(size * 0.2)
             d.text(((w - (r - l)) / 2 - l, y - tp), line, font=fnt, fill="white", stroke_width=max(2, size // 12), stroke_fill="black")
@@ -508,19 +577,38 @@ def _crop_box(fw, fh, W, H, fx, fy, want, zoom=1.0):
     return (int(x0), int(y0), int(x0 + cw), int(y0 + ch))
 
 
+def _face_span(face, box, H):
+    """Face box top/bottom in thumbnail pixels when the source crop `box` fills a thumbnail H px tall."""
+    k = H / (box[3] - box[1])
+    return (face[2] - face[4] / 2 - box[1]) * k, (face[2] + face[4] / 2 - box[1]) * k
+
+
+def _title_band(ft, fb, H, lo=0.13, hi=0.76, pad=0.02):
+    """(y0, y1, side): the larger free band above ('top') or below ('low') a face spanning ft..fb px,
+    kept inside lo..hi of H (the 3:4 grid crop of a 9:16 cover)."""
+    up, down = (H * lo, min(ft, H * hi) - H * pad), (max(fb, H * lo) + H * pad, H * hi)
+    return (*up, "top") if up[1] - up[0] >= down[1] - down[0] else (*down, "low")
+
+
 def compose_thumb(frame_bgr, face, headline, accent, layout, W, H, matte=None):
-    """layout: 'left' (text left, subject right), 'right', 'bottom', or 'cover' (vertical; text above or below the face)."""
+    """layout: 'left' (text left, subject right), 'right', 'bottom', or 'cover' (vertical; text above or below the face).
+    `face` = a load_track sample; with its box (5th value) the cover title goes in the larger free band off the face."""
     from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
     import numpy as np
     img = Image.fromarray(np.ascontiguousarray(frame_bgr[:, :, ::-1]))
     fw, fh = img.size
     head = (face[1], face[2]) if face else estimate_subject(frame_bgr, matte)
     fx, fy = head or (fw / 2, fh * 0.4)
+    boxed = bool(face) and len(face) > 4
     if layout == "cover":                                         # text where the face is not
         b0 = _crop_box(fw, fh, W, H, fx, fy, (0.5, 0.5))
-        layout = "low" if (fy - b0[1]) / (b0[3] - b0[1]) < 0.5 else "top"
+        layout = (_title_band(*_face_span(face, b0, H), H)[2] if boxed
+                  else "low" if (fy - b0[1]) / (b0[3] - b0[1]) < 0.5 else "top")
     want, (ax, aw) = THUMB_LAYOUT[layout]
     box = _crop_box(fw, fh, W, H, fx, fy, want, 1.15 if layout in ("left", "right") else 1.0)
+    band = _title_band(*_face_span(face, box, H), H) if boxed and layout in ("top", "low") else None
+    if band:
+        layout = band[2]
     frame = img.crop(box).resize((W, H), Image.LANCZOS)
     base = ImageEnhance.Color(ImageEnhance.Contrast(frame).enhance(1.08)).enhance(1.12)
     base = Image.composite(Image.new("RGB", (W, H)), base, Image.fromarray(_scrim(layout, W, H)))
@@ -529,15 +617,19 @@ def compose_thumb(frame_bgr, face, headline, accent, layout, W, H, matte=None):
     vertical = layout in ("top", "low")
     words, size = headline.split(), int(H * (0.1 if vertical else 0.2))
     max_lines, max_h = (2 if layout == "bottom" else 3), H * (0.22 if vertical else 0.4 if layout == "bottom" else 0.75)
+    if band:
+        max_h = min(max_h, band[1] - band[0])
     while True:
-        fnt = font(size)
+        fnt = font(size, headline)
         lines, lh = _wrap(d, words, fnt, area[1]), int(size * 1.05)
-        if size <= 24 or (len(lines) <= max_lines and lh * len(lines) <= max_h):
+        if size <= 24 or (len(lines) <= max_lines and lh * len(lines) <= max_h
+                          and all(d.textlength(" ".join(ln), font=fnt) <= area[1] for ln in lines)):
             break
         size -= 4
     total = lh * len(lines)
-    y = {"left": (H - total) / 2, "right": (H - total) / 2, "bottom": H * 0.94 - total, "top": H * 0.13,
-         "low": H * 0.76 - total}[layout]
+    y = (band[0] + band[1] - total) / 2 if band else {
+        "left": (H - total) / 2, "right": (H - total) / 2, "bottom": H * 0.94 - total, "top": H * 0.13,
+        "low": H * 0.76 - total}[layout]
     region = np.asarray(base.crop((int(area[0]), int(y), int(area[0] + area[1]), int(y + total))))
     bg = tuple(int(v) for v in region.reshape(-1, 3).mean(0)) if region.size else (0, 0, 0)
     main = max([(255, 255, 255), accent], key=lambda c: contrast(c, bg))
@@ -553,7 +645,10 @@ def compose_thumb(frame_bgr, face, headline, accent, layout, W, H, matte=None):
     if matte is not None:                                        # text behind the subject (matte from matte.py)
         m = Image.fromarray(matte).crop(box).resize((W, H)).filter(ImageFilter.GaussianBlur(1))
         base = Image.composite(frame, base, m.convert("L"))
-    return base, {"contrast": round(contrast(main, bg), 2), "font_px": size, "text_color": main}
+    face_font = font_face(headline)
+    return base, {"contrast": round(contrast(main, bg), 2), "font_px": size, "text_color": main,
+                  "font": f"{os.path.basename(face_font[0])}#{face_font[1]}" if face_font else "pillow-default",
+                  "text_over_face": bool(band) and total > band[1] - band[0]}
 
 
 def headline_from(plan, words, override=None):
@@ -561,15 +656,15 @@ def headline_from(plan, words, override=None):
     if override:
         return override.upper()
     sents = C.sentences(words) if words else []
-    hook = next((e.get("text") for e in (plan or {}).get("elements", []) if e.get("type") in ("text", "headline")
-                 and float(e.get("start", 9)) < 3 and e.get("text")), None)
+    hook = next((re.sub(r"<[^>]+>", "", e["text"]) for e in (plan or {}).get("elements", [])   # skins put HTML in hooks
+                 if e.get("type") in ("text", "headline") and float(e.get("start", 9)) < 3 and e.get("text")), None)
     src = sents[0]["text"] if sents else (hook or "")
     if hook and sents and not sents[0]["text"].lower().startswith(hook.lower()[:12]):
         src = hook
     ws = C.numberize(src).split()
     while ws and C.bare(ws[0]) in {"here", "are", "is", "this", "so", "today", "and", "okay", "heres"}:
         ws = ws[1:]
-    return " ".join(ws[:7]).rstrip(".,!?;:").upper()
+    return " ".join(ws[:7]).rstrip(".,!?;:।॥…").upper()
 
 
 def read_matte(matte_path, t):
@@ -764,11 +859,20 @@ def deliver(inp, to, out_dir, track_path=None, words_path=None, burn="auto", bur
 
     hl = headline_from(plan, words, headline)
     if thumbs:
-        rep["thumbnails"] = {"headline": hl, "source": src["clean"],
-                             "files": make_thumbnails(src["clean"], out_dir, hl, src["accent"],
-                                                      track if src["clean"] == video else
-                                                      load_track(track_path or os.path.join(src["work"], "track.json"), *_dims(src["clean"])),
-                                                      src["matte"])}
+        tt = track
+        if src["clean"] != video:                       # thumbs come from the clean source: use its own face track
+            cw, ch = _dims(src["clean"])
+            tt = next(filter(None, (load_track(p, cw, ch) for p in
+                                    (track_path, plan_track(plan), os.path.join(src["work"], "track.json")))), None)
+        rep["thumbnails"] = {"headline": hl, "source": src["clean"], "face_track": bool(tt)}
+        try:
+            rep["thumbnails"]["files"] = make_thumbnails(src["clean"], out_dir, hl, src["accent"], tt, src["matte"])
+        except RuntimeError as e:                       # e.g. no installed font for the headline's script
+            log(f"thumbnails FAILED: {e}"); rep["notes"].append(f"thumbnails failed: {e}")
+    for t in ([hl] if thumbs else []) + ([caption_text] if ctx["burn_cues"] and engine == "pillow" else []):
+        n = shaping_note(t)
+        if n and n not in rep["notes"]:
+            log(n); rep["notes"].append(n)
     if post:
         titles, tags = write_post_pack(os.path.join(out_dir, "post.md"), words, hl, ch_text, not ch_probs, caption_text)
         rep["post"] = {"file": os.path.join(out_dir, "post.md"), "titles": titles, "hashtags": tags}
@@ -808,6 +912,20 @@ def write_report_md(rep, path):
     open(path, "w", encoding="utf-8").write("\n".join(L) + "\n")
 
 
+def self_test():
+    assert script_of("हर बात 5") == "DEVANAGARI" and script_of("ok नमस्ते") == "DEVANAGARI"
+    assert script_of("Top 5 tips") == "LATIN" and script_of("") == "LATIN"
+    assert _title_band(0, 960, 1920)[2] == "low" and _title_band(960, 1728, 1920)[2] == "top"   # head at top / at bottom
+    y0, y1, _ = _title_band(461, 1248, 1920)                     # whatsapp-spiral selfie: face 0.24-0.65 of the cover
+    assert y1 <= 461 or y0 >= 1248, "title band overlaps the face"
+    assert _face_span((0, 50, 100, 40, 60), (0, 0, 100, 200), 400) == (140.0, 260.0)
+    hi = font_face("हर बात तीरा ज़िन्दगी")                         # raises if no Devanagari font is installed
+    assert _has_glyphs(*hi, "हरबातीज़िन्दगी"), hi
+    if _has_glyphs("arialbd.ttf", 0, "abc"):                     # Windows: Arial Bold has no Devanagari -> tofu detected
+        assert not _has_glyphs("arialbd.ttf", 0, "ह") and font_face("Top 5 tips", "arialbd.ttf")[0] == "arialbd.ttf"
+    print("self-test ok:", hi, "|", shaping_note("हर") or "shaping ok")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("input", nargs="?")
@@ -825,7 +943,10 @@ def main():
     ap.add_argument("--no-thumbs", action="store_true")
     ap.add_argument("--no-post", action="store_true")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--self-test", action="store_true", help="check script-aware font picking and the cover title band")
     a = ap.parse_args()
+    if a.self_test:
+        return self_test()
     if a.list or not a.input:
         for k, p in PRESETS.items():
             print(f"{k:16} {p['kind']:5} {str(p['w'] or 'src')}x{str(p['h'] or 'src'):5} {p['vcodec']:10} lufs={p['lufs']} "

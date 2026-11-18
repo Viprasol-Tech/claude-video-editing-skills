@@ -12,8 +12,9 @@ article and its noun, a first and last name, or a pronoun and its verb.
 
 Run this file directly for a self-check.
 """
-import re
+import re, unicodedata
 import xml.etree.ElementTree as ET
+from vs_common import norm, SENT_END
 from xml.sax.saxutils import escape
 
 MAX_CHARS, MAX_LINES, CPS_ADULT, CPS_KIDS = 42, 2, 20.0, 17.0
@@ -33,13 +34,20 @@ STOP = ARTICLES | CONJ | PREP | AUX | PRONOUNS | {"this", "that", "some", "any",
     "thing", "things", "one", "all", "more", "most", "much", "many", "now", "out", "up", "down",
     "first", "second", "third", "let", "lets", "okay", "ok", "yeah", "right", "well", "follow",
     "dont", "im", "youre", "its", "thats", "about", "make", "made", "huge", "big", "these", "those"}
-_GLUE = tuple(",.!?;:%)]}'’…")
+_GLUE = tuple(",.!?;:%)]}'’…।॥")
 _NUMWORDS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6",
              "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12"}
 
 
 def bare(w):
-    return re.sub(r"[^\w']", "", w.lower())
+    return norm(w)   # keeps Devanagari vowel signs (a [^\w] strip turned "तो" into "त")
+
+
+def glen(s):
+    """On-screen length in grapheme clusters: a base letter plus its combining marks counts once, so Devanagari
+    matras/virama/nukta add nothing ("राशि है फकीरा" = 8, not 13 code points). Latin text: same as len().
+    ponytail: legacy clusters (stdlib only); a virama conjunct like "क्ष" counts 2, close to its width anyway."""
+    return sum(1 for ch in s if not unicodedata.category(ch).startswith("M") and ch not in "\u200c\u200d")
 
 
 # ---------------------------------------------------------------- tokens and line breaks
@@ -66,7 +74,7 @@ def _break_cost(left, right, l1, l2):
     cost = abs(l1 - l2) * 0.6 + max(0, l1 - l2) * 0.4          # balanced, bottom-heavy pyramid
     if min(l1, l2) < 8:
         cost += 15                                                # no orphan stubs like "so,"
-    if left.endswith((",", ".", ";", ":", "!", "?", "…")):
+    if left.endswith((",", ".", ";", ":", "!", "?", "…", "।", "॥")):
         cost -= 25
     if rb in CONJ or rb in PREP:
         cost -= 10
@@ -78,7 +86,7 @@ def _break_cost(left, right, l1, l2):
         cost += 35                                                # subject pronoun + verb
     if rb in {"not", "n't"} or (lb in AUX and rb not in ARTICLES and not rb[:1].isdigit()):
         cost += 30                                                # verb + auxiliary / negation
-    if left[:1].isupper() and right[:1].isupper() and not left.endswith((".", "!", "?")):
+    if left[:1].isupper() and right[:1].isupper() and not SENT_END.search(left):
         cost += 45                                                # first + last name
     return cost
 
@@ -86,16 +94,16 @@ def _break_cost(left, right, l1, l2):
 def layout(tokens, max_chars=MAX_CHARS, max_lines=MAX_LINES):
     """Best line split for a list of word strings, or None if it cannot fit."""
     text = " ".join(tokens)
-    if len(text) <= max_chars:
+    if glen(text) <= max_chars:
         return [text]
     if max_lines < 2:
         return None
     best = None
     for i in range(1, len(tokens)):
         a, b = " ".join(tokens[:i]), " ".join(tokens[i:])
-        if len(a) > max_chars or len(b) > max_chars:
+        if glen(a) > max_chars or glen(b) > max_chars:
             continue
-        c = _break_cost(tokens[i - 1], tokens[i], len(a), len(b))
+        c = _break_cost(tokens[i - 1], tokens[i], glen(a), glen(b))
         if best is None or c < best[0]:
             best = (c, [a, b])
     return best[1] if best else None
@@ -128,7 +136,7 @@ def build_cues(words, cps=CPS_ADULT, max_chars=MAX_CHARS, max_lines=MAX_LINES, f
                 flush(cut)
             elif t["end"] - cur[0]["start"] > max_dur or t["start"] - cur[-1]["end"] > pause_split:
                 flush()
-            elif cur[-1]["w"].endswith((".", "!", "?")) and len(" ".join(x["w"] for x in cur)) >= 6:
+            elif SENT_END.search(cur[-1]["w"]) and glen(" ".join(x["w"] for x in cur)) >= 6:
                 flush()
         cur.append(t)
     flush()
@@ -140,7 +148,7 @@ def build_cues(words, cps=CPS_ADULT, max_chars=MAX_CHARS, max_lines=MAX_LINES, f
         lines = layout([x["w"] for x in g], max_chars, max_lines) or [" ".join(x["w"] for x in g)]
         cues.append({"start": g[0]["start"], "end": g[-1]["end"], "lines": lines})
     for i, c in enumerate(cues):
-        chars = len(" ".join(c["lines"]))
+        chars = glen(" ".join(c["lines"]))
         end = max(c["end"], c["start"] + max(min_dur, chars / cps))
         end = min(end, c["start"] + max_dur)
         if i + 1 < len(cues):
@@ -157,10 +165,10 @@ def validate_cues(cues, cps=CPS_ADULT, max_chars=MAX_CHARS, max_lines=MAX_LINES,
         d = c["end"] - c["start"]
         text = " ".join(c["lines"])
         chk = [("lines", len(c["lines"]), max_lines, len(c["lines"]) > max_lines),
-               ("chars_per_line", max(len(l) for l in c["lines"]), max_chars, max(len(l) for l in c["lines"]) > max_chars),
+               ("chars_per_line", max(glen(l) for l in c["lines"]), max_chars, max(glen(l) for l in c["lines"]) > max_chars),
                ("min_duration", round(d, 3), round(min_dur, 3), d < min_dur - eps),
                ("max_duration", round(d, 3), max_dur, d > max_dur + eps),
-               ("cps", round(len(text) / max(d, 1e-6), 1), cps, len(text) / max(d, 1e-6) > cps + 0.05)]
+               ("cps", round(glen(text) / max(d, 1e-6), 1), cps, glen(text) / max(d, 1e-6) > cps + 0.05)]
         if i + 1 < len(cues):
             g = cues[i + 1]["start"] - c["end"]
             chk.append(("gap_frames", round(g * fps, 2), gap_frames, g < gap_frames / fps - eps))
@@ -284,7 +292,7 @@ def sentences(words):
     toks, out, cur = merge_tokens(words), [], []
     for t in toks:
         cur.append(t)
-        if t["w"].endswith((".", "!", "?")):
+        if SENT_END.search(t["w"]):
             out.append(cur); cur = []
     if cur:
         out.append(cur)
@@ -411,4 +419,12 @@ if __name__ == "__main__":   # self-check
     assert len(ch) >= 3 and ch[0]["start"] == 0 and not youtube_chapters(ch, off)[1], ch
     assert youtube_chapters(parse_chapters("0:00 A; 0:12 B; 0:30 C"), 45)[1] == []
     assert youtube_chapters(parse_chapters("0:00 A; 0:05 B"), 45)[1]
+    # Devanagari: vowel signs survive bare(), the danda ends sentences and cues, lengths are in graphemes
+    assert bare("तो,") == "तो" and bare("है।") == "है" and glen("राशि है फकीरा") == 8 and glen("Hello, world") == 12
+    hi = [{"w": w, "start": i * 0.5, "end": i * 0.5 + 0.4} for i, w in enumerate("मैंने यह गलती की। आप मत करना। ठीक है".split())]
+    assert [s["text"] for s in sentences(hi)] == ["मैंने यह गलती की।", "आप मत करना।", "ठीक है"], sentences(hi)
+    assert all(not c["lines"][-1].endswith("आप") for c in build_cues(hi)), build_cues(hi)
+    assert merge_tokens([{"w": "की", "start": 0, "end": .4}, {"w": "।", "start": .4, "end": .5}])[0]["w"] == "की।"
+    line = "हर बात तीरा बरगी, राशि है फकीरा बरगी, एक ए छोरी"   # 49 code points, 34 graphemes
+    assert len(line) > MAX_CHARS and layout(line.split()) == [line]
     print("captions.py self-check OK:", len(cues), "cues;", len(ch), "auto chapters on a", round(off), "s sample")

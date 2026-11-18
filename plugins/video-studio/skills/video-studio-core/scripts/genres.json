@@ -8359,6 +8359,121 @@
     "news-desk"
    ],
    "label": "Localise / dub: transcribe, translate, per-line TTS fitted to timing, remix over M&E, subtitles"
+  },
+  "poetry-reel": {
+   "family": "poetry",
+   "aspect": "9:16",
+   "alt_aspects": [
+    "4:5",
+    "1:1"
+   ],
+   "duration_s": [
+    8,
+    60
+   ],
+   "autocut": {
+    "enabled": false,
+    "max_gap": 2.0,
+    "breath": 0.3,
+    "pad": 0.15,
+    "fillers": "off",
+    "retakes": false,
+    "smart_cuts": true,
+    "xfade_ms": 40,
+    "jcut_frames": 0
+   },
+   "cut_point": "line end (never inside a line)",
+   "asl_s": [
+    3.0,
+    10.0
+   ],
+   "interrupt_s": 3.0,
+   "captions": {
+    "style": "one line at a time from the creator's own text (transcribe.py --text), karaoke fill, Devanagari, last line emphasised",
+    "mode": "karaoke",
+    "max_words": 6,
+    "cps": 15,
+    "uppercase": false
+   },
+   "emphasis": "last-line",
+   "music": {
+    "policy": "bed",
+    "bed_db": -26,
+    "duck": true,
+    "duck_db": -10
+   },
+   "sfx": {
+    "density": "low",
+    "per_min": 2
+   },
+   "transitions": {
+    "default": "cut",
+    "allowed": [
+     "cut",
+     "dissolve",
+     "dip-to-black"
+    ]
+   },
+   "hook": {
+    "within_s": 2.0,
+    "max_words": 6,
+    "rules": [
+     "the first line is the hook: start on its first word, no intro",
+     "keep the pauses and breaths between lines; never cut inside a line",
+     "hold the pause before the last line, then land the punch line"
+    ]
+   },
+   "structure": [
+    {
+     "beat": "first line (hook)",
+     "pct": 25
+    },
+    {
+     "beat": "build lines",
+     "pct": 50
+    },
+    {
+     "beat": "punch line (last line)",
+     "pct": 25
+    }
+   ],
+   "loudness": {
+    "platform": "TikTok / Reels / Shorts",
+    "lufs": -14,
+    "true_peak": -1
+   },
+   "grade": "warm",
+   "safe_zone": {
+    "top": 0.1,
+    "bottom": 0.85,
+    "right": 0.88
+   },
+   "max_overlays": 2,
+   "deliverables": [
+    "9:16 1080x1920 H.264 master",
+    "captions burned-in (Devanagari)",
+    "lines .srt",
+    "cover frame with the punch line"
+   ],
+   "qc": [
+    "every line on screen while spoken (+-0.1 s)",
+    "words spelled as the creator wrote them",
+    "Devanagari shaping correct (no broken matras or conjuncts)",
+    "pauses between lines kept",
+    "-14 LUFS, -1 dBTP"
+   ],
+   "client_judges": [
+    "delivery of the punch line",
+    "correct script and spelling",
+    "shares and saves"
+   ],
+   "styles": [
+    "glass-ribbon",
+    "soft-gradient",
+    "quote-card-reel",
+    "minimal-mono"
+   ],
+   "label": "Shayari / poetry / dialogue reel: whole lines with their pauses, karaoke captions from the creator's text, punch line emphasised"
   }
  }
 }

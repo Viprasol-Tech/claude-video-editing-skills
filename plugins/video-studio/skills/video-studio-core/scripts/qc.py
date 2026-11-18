@@ -8,9 +8,13 @@ integrated LUFS / true peak / LRA vs platform target, silences > 2 s, black fram
 photosensitivity (>= 3 flashes in any 1 s), illegal levels (signalstats BRNG), A/V sync heuristic,
 caption rules (broadcast cues from words; creator captions; overlay min 0.6 s; 9:16 safe zone
 10-85 % height and clear of the right 12 %; <= 2 overlays at once on vertical), size/length limits.
-Exit code: 0, or 1 with --strict when any check FAILs.
+Perceptual: caption script vs the expected language (--lang / plan.language / plan.script / plan.profile),
+glyph coverage of the skin font stacks (tofu), text boxes over the face track > 0.5 s, black/blank last 0.3 s.
+Exit code: 0, or 1 with --strict when any check FAILs.   Self-check: qc.py --self-test
 """
-import argparse, json, os, re, shutil, struct, subprocess, sys, tempfile
+import argparse, bisect, functools, glob, html, json, os, re, shutil, struct, subprocess, sys, tempfile, unicodedata
+import urllib.request
+from collections import Counter, defaultdict
 from vs_common import load_json, save_json, log
 import captions as C
 from deliver import PRESETS, stream_info
@@ -59,13 +63,20 @@ def analyse(path, has_audio):
     p = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", os.path.abspath(path), "-filter_complex", g] + maps + ["-f", "null", "-"],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=d, encoding="utf-8", errors="replace")
     err = p.stderr
-    yavg, brng = [], []
+    yavg, brng, frames = [], [], []          # frames: [pts_time, YLOW, YHIGH] (10th / 90th percentile luma)
     if os.path.exists(os.path.join(d, "stats.txt")):
         for line in open(os.path.join(d, "stats.txt"), encoding="utf-8"):
-            if "signalstats.YAVG=" in line:
+            if line.startswith("frame:"):
+                m = re.search(r"pts_time:(-?[\d.]+)", line)
+                frames.append([float(m[1]) if m else None, None, None])
+            elif "signalstats.YAVG=" in line:
                 yavg.append(float(line.split("=")[1]))
             elif "signalstats.BRNG=" in line:
                 brng.append(float(line.split("=")[1]))
+            elif frames and "signalstats.YLOW=" in line:
+                frames[-1][1] = float(line.split("=")[1])
+            elif frames and "signalstats.YHIGH=" in line:
+                frames[-1][2] = float(line.split("=")[1])
     shutil.rmtree(d, ignore_errors=True)
     blacks = [(float(a), float(b)) for a, b in re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", err)]
     sil = [(float(a), float(b)) for a, b in re.findall(r"silence_start: ([\d.]+)[\s\S]*?silence_end: ([\d.]+)", err)]
@@ -75,7 +86,7 @@ def analyse(path, has_audio):
         m = re.search(pat, summ)
         if m:
             loud[k] = float(m[1].replace("-inf", "-99"))
-    return {"yavg": yavg, "brng": brng, "black": blacks, "silence": sil, "loudness": loud, "ok": p.returncode == 0}
+    return {"yavg": yavg, "brng": brng, "frames": frames, "black": blacks, "silence": sil, "loudness": loud, "ok": p.returncode == 0}
 
 
 def flash_analysis(yavg, fps, maxval=255.0):
@@ -193,6 +204,267 @@ def caption_checks(plan, words, fps, cps):
     return res
 
 
+# ------------------------------------------------------------------ perceptual checks: script, glyphs, face, end frames
+LANG_SCRIPT = {"hi": "DEVANAGARI", "bgc": "DEVANAGARI", "mr": "DEVANAGARI", "ne": "DEVANAGARI", "sa": "DEVANAGARI",
+               "bho": "DEVANAGARI", "raj": "DEVANAGARI", "ur": "ARABIC", "ar": "ARABIC", "fa": "ARABIC", "pa": "GURMUKHI",
+               "bn": "BENGALI", "gu": "GUJARATI", "or": "ORIYA", "ta": "TAMIL", "te": "TELUGU", "kn": "KANNADA",
+               "ml": "MALAYALAM", "en": "LATIN", "es": "LATIN", "fr": "LATIN", "de": "LATIN", "pt": "LATIN", "it": "LATIN"}
+SCRIPTS = set(LANG_SCRIPT.values()) | {"CYRILLIC", "GREEK", "CJK", "HIRAGANA", "KATAKANA", "HANGUL", "THAI"}
+TEXT_KEYS = ("text", "title", "subtitle", "label", "query", "name", "role", "kicker")
+GENERIC_FONTS = {"serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "emoji", "math", "ui-sans-serif",
+                 "ui-serif", "ui-monospace", "ui-rounded", "inherit", "initial", "unset"}
+CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+CORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FONT_DIRS = (os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"),
+             os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "Windows", "Fonts"),
+             "/usr/share/fonts", os.path.expanduser("~/.local/share/fonts"), "/Library/Fonts", os.path.expanduser("~/Library/Fonts"))
+FACE_TEXT_TYPES = {"text", "headline", "chip", "captions", "card", "lowerthird", "ticker", "counter", "tile", "sticker",
+                   "checklist", "searchbar"}
+FACE_STEP, FACE_MAX_S, FACE_MIN_COVER = 0.1, 0.5, 0.15   # sample step s, allowed time on the face, overlap share
+END_S = 0.3
+
+
+def script_of(ch):
+    """Unicode script of a letter or mark ('DEVANAGARI', 'ARABIC', 'LATIN'...); None for digits, punctuation, spaces."""
+    if unicodedata.category(ch)[0] not in "LM":
+        return None
+    word = unicodedata.name(ch, " ").split(" ")[0]
+    return None if word in ("", "COMBINING", "MODIFIER") else word
+
+
+def el_text(el):
+    """All on-screen text of one plan element, HTML tags stripped."""
+    vals = [el.get(k) for k in TEXT_KEYS] + [w.get("w") for w in el.get("words") or [] if isinstance(w, dict)]
+    for k in ("items", "lines"):
+        vals += [i.get("text") if isinstance(i, dict) else i for i in (el.get(k) if isinstance(el.get(k), list) else [])]
+    return html.unescape(re.sub(r"<[^>]+>", " ", " ".join(v for v in vals if isinstance(v, str)))).strip()
+
+
+def plan_texts(plan):
+    """[(where, text)] for the plan's caption words and every element that puts text on screen."""
+    out = [("words", " ".join(str(w.get("w", "")) for w in plan.get("words") or []).strip())]
+    out += [(f"{el.get('type')}@{float(el.get('start', 0)):.2f}", el_text(el)) for el in plan.get("elements", [])]
+    return [(k, t) for k, t in out if t]
+
+
+def expected_script(plan, lang=None):
+    """Expected caption script from --lang, else plan.script / plan.language / plan.profile; None when unset."""
+    prof = plan.get("profile") if isinstance(plan.get("profile"), dict) else {}
+    v = lang or plan.get("script") or plan.get("language") or prof.get("script") or prof.get("language")
+    if not v:
+        return None
+    s = LANG_SCRIPT.get(str(v).strip().lower().replace("_", "-").split("-")[0], str(v).strip().upper())
+    if s not in SCRIPTS:
+        raise ValueError(f"unknown caption language/script {v!r}: use a code ({', '.join(sorted(LANG_SCRIPT))}) or a script name")
+    return s
+
+
+def script_checks(texts, expected):
+    """FAIL when caption/text letters are in a script other than the expected one (Latin is allowed: English words)."""
+    counts, where = Counter(), defaultdict(list)
+    for k, t in texts:
+        for s in filter(None, map(script_of, t)):
+            counts[s] += 1
+            if k not in where[s]:
+                where[s].append(k)
+    hist = ", ".join(f"{s.title()} {n}" for s, n in counts.most_common()) or "no letters"
+    if not counts:
+        return [("caption_script", "info", hist, "", "")]
+    if not expected:
+        other = [s for s in counts if s != "LATIN"]
+        return [("caption_script", "warn" if len(other) > 1 else "info", hist, "set plan.language or --lang to enforce",
+                 "mixed non-Latin scripts" if len(other) > 1 else "")]
+    want = f"{expected.title()} (+ Latin)"
+    wrong = [s for s in counts if s not in (expected, "LATIN")]
+    if wrong:
+        return [("caption_script", "fail", hist, want, "; ".join(f"{s.title()} in {', '.join(where[s][:4])}" for s in wrong))]
+    if expected != "LATIN" and counts["LATIN"] > counts[expected]:
+        return [("caption_script", "warn", hist, want, "mostly Latin letters: romanised transcript?")]
+    return [("caption_script", "pass", hist, want, "")]
+
+
+def font_stacks(plan):
+    """Ordered family lists the skin uses: --font-* vars (base.css defaults unless the theme sets them) and the
+    font-family rules of the skin CSS. ponytail: element-specific fonts inside base.css (mono, VT323) are skipped."""
+    th = plan.get("theme") or {}
+    fvars, stacks, missing = {}, [], []
+    for k, v in re.findall(r"(--font-(?:display|body))\s*:\s*([^;]+);", open(os.path.join(CORE, "runtime", "base.css"), encoding="utf-8").read()):
+        fvars.setdefault(k, v)
+    fvars.update({k: v for k, v in (th.get("vars") or {}).items() if k.startswith("--font")})
+    stacks += fvars.values()
+    for p in th.get("cssFiles") or []:
+        if os.path.exists(p):
+            stacks += re.findall(r"font-family\s*:\s*([^;}]+)", open(p, encoding="utf-8").read())
+        else:
+            missing.append(p)
+    out = []
+    for s in stacks:
+        fams = [f.strip().strip("'\"").strip() for f in s.split("!")[0].split(",")]
+        fams = [f for f in fams if f and not f.startswith("var(") and f.lower() not in GENERIC_FONTS]
+        if fams and fams not in out:
+            out.append(fams)
+    return out, missing
+
+
+def parse_font_ranges(css):
+    """{family lower: [(lo, hi)]}: the unicode-range each @font-face serves (no range = all, as in CSS)."""
+    out = {}
+    for block in re.findall(r"@font-face\s*{([^}]*)}", css):
+        fam, rng = re.search(r"font-family:\s*['\"]?([^;'\"]+)", block), re.search(r"unicode-range:\s*([^;]+)", block)
+        if not fam:
+            continue
+        spans = out.setdefault(fam[1].strip().lower(), [])
+        for part in (rng[1].split(",") if rng else ["U+0-10FFFF"]):
+            lo, _, hi = part.strip().upper().removeprefix("U+").partition("-")
+            spans.append((int(lo.replace("?", "0"), 16), int((hi or lo).replace("?", "F"), 16)))
+    return out
+
+
+def google_font_ranges(url):
+    """Web-font coverage straight from the skin's fontsUrl (a Chrome UA gets the per-subset unicode-range)."""
+    req = urllib.request.Request(url, headers={"User-Agent": CHROME_UA})
+    return parse_font_ranges(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
+
+
+@functools.lru_cache(maxsize=1)
+def local_fonts():
+    """{family lower: font file} for installed fonts (~2 s for a full Windows font folder; built only when needed)."""
+    from PIL import ImageFont
+    out = {}
+    for d in FONT_DIRS:
+        for p in sorted(glob.glob(os.path.join(d, "**", "*.[ot]t[fc]"), recursive=True)):
+            try:
+                out.setdefault(ImageFont.truetype(p, 12).getname()[0].lower(), p)
+            except OSError:      # unreadable font file: the renderer cannot use it either
+                continue
+    return out
+
+
+def _pillow_coverage(path):
+    """ch -> bool without fontTools: a missing char renders the same bitmap as .notdef (glyph 0)."""
+    from PIL import Image, ImageDraw, ImageFont
+    f = ImageFont.truetype(path, 40)
+
+    def ink(ch):
+        im = Image.new("L", (96, 96))
+        ImageDraw.Draw(im).text((24, 16), ch, font=f, fill=255)
+        return im.tobytes()
+    notdef = ink("\U0010FFFD")                        # private-use char no font maps
+    return lambda ch: ink(ch) != notdef
+
+
+def file_coverage(path):
+    """ch -> bool for a font file: fontTools cmap when installed, else the Pillow .notdef comparison."""
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        return _pillow_coverage(path)
+    cmap = TTFont(path, lazy=True, fontNumber=0).getBestCmap() or {}
+    return lambda ch: ord(ch) in cmap
+
+
+def family_coverage(fam, webfonts):
+    """ch -> bool for a CSS family as the renderer resolves it (web font first, then an installed font);
+    None when it is neither loaded nor installed, so the browser skips it."""
+    spans = webfonts.get(fam.lower())
+    if spans is not None:
+        return lambda ch: any(lo <= ord(ch) <= hi for lo, hi in spans)
+    path = local_fonts().get(fam.lower())
+    return file_coverage(path) if path else None
+
+
+def glyph_checks(plan, texts):
+    """Tofu: every letter/mark/digit on screen must be in some family of each skin font stack.
+    ponytail: web fonts are judged by their subset unicode-range, not per-glyph cmap."""
+    chars = sorted({ch for _, t in texts for ch in t if unicodedata.category(ch)[0] in "LMN"})
+    if not chars:
+        return []
+    stacks, missing = font_stacks(plan)
+    url, webfonts, note = (plan.get("theme") or {}).get("fontsUrl") or "", {}, ""
+    if url:
+        try:
+            webfonts = google_font_ranges(url)
+        except (OSError, ValueError) as e:
+            note = f" Web fonts unverified: fonts CSS unreachable ({e})."
+    res = [("glyph_coverage", "warn", f"{len(missing)} skin CSS files missing", "theme.cssFiles exist", "; ".join(missing))] if missing else []
+    for fams in stacks:
+        left, used = chars, []
+        for fam in fams:
+            cov = family_coverage(fam, webfonts)
+            if cov is None:
+                used.append(f"{fam}: not loaded")
+                continue
+            got = [c for c in left if cov(c)]
+            used.append(f"{fam}: {len(got)}")
+            left = [c for c in left if not cov(c)]
+            if not left:
+                break
+        stack = ", ".join(fams)
+        if left:
+            scr = sorted({(script_of(c) or "DIGIT").title() for c in left})
+            res.append(("glyph_coverage", "warn", f"{len(left)} chars missing in {stack}", f"every char in [{stack}]",
+                        f"no glyph for {''.join(left[:12])} ({', '.join(scr)}): tofu or a system fallback font ({'; '.join(used)}).{note}"))
+        else:
+            res.append(("glyph_coverage", "pass", f"{len(chars)} chars", f"every char in [{stack}]", "; ".join(used)))
+    return res
+
+
+def face_at(track, ts, t):
+    """engine.js faceAt: linear interpolation of the normalized {t,x,y,w,h} face boxes, clamped at the ends."""
+    i = bisect.bisect_right(ts, t) - 1
+    if i < 0:
+        return track[0]
+    if i >= len(track) - 1:
+        return track[-1]
+    a, b = track[i], track[i + 1]
+    k = min(1.0, max(0.0, (t - a["t"]) / ((b["t"] - a["t"]) or 1)))
+    return {q: a[q] + (b[q] - a[q]) * k for q in "xywh"}
+
+
+def text_box(el, W, H):
+    """(left, top, right, bottom) px of a centred plan element. ponytail: plan geometry, not the rendered DOM;
+    a missing h is one 0.06 H line, a missing w is chars x 0.5 line height (render-measured boxes would be exact)."""
+    h = float(el.get("h") or H * (0.06 if el["type"] in ("text", "headline", "chip", "captions") else 0.15))
+    n = int(el.get("maxChars") or 22) if el["type"] == "captions" else len(el_text(el))
+    w = float(el.get("w") or min(W * 0.9, max(n, 4) * 0.5 * h))
+    x, y = float(el.get("x", W / 2)), float(el.get("y", H * 0.68 if el["type"] == "captions" else H / 2))
+    return x - w / 2, y - h / 2, x + w / 2, y + h / 2
+
+
+def face_checks(plan, W, H, dur):
+    """WARN when a text box covers >= 15 % of the face box (or of itself) for more than 0.5 s. Decor is skipped."""
+    track = sorted((f for f in plan.get("track") or [] if all(k in f for k in "txywh")), key=lambda f: f["t"])
+    if not track:
+        return [("text_over_face", "info", "no face track in plan", "", "")]
+    ts, hits = [f["t"] for f in track], []
+    for el in plan.get("elements", []):
+        if el.get("type") not in FACE_TEXT_TYPES or el.get("decor"):
+            continue
+        l, t, r, b = text_box(el, W, H)
+        s, e = float(el.get("start", 0)), min(float(el.get("end", dur)), dur)
+        n = 0
+        for k in range(max(0, int((e - s) / FACE_STEP))):
+            f = face_at(track, ts, s + (k + 0.5) * FACE_STEP)
+            fl, ft, fr, fb = f["x"] * W, f["y"] * H, (f["x"] + f["w"]) * W, (f["y"] + f["h"]) * H
+            inter = max(0.0, min(r, fr) - max(l, fl)) * max(0.0, min(b, fb) - max(t, ft))
+            n += inter > 0 and inter >= FACE_MIN_COVER * min((r - l) * (b - t), (fr - fl) * (fb - ft))
+        if n * FACE_STEP > FACE_MAX_S:
+            hits.append(f"{el['type']}@{s:.2f} {n * FACE_STEP:.1f}s")
+    return [("text_over_face", "warn" if hits else "pass", len(hits), "no text box on the face > 0.5 s", "; ".join(hits[:6]))]
+
+
+def end_frame_check(frames, dur, maxval=255.0):
+    """FAIL when a frame in the last 0.3 s is black (90th-percentile luma under 10 % grey) or blank (10-90 % luma
+    spread <= 8 levels: an empty background). ponytail: a bright, heavily vignetted empty background is missed."""
+    black, flat = (16 + 0.10 * 219) / 255 * maxval, 8 / 255 * maxval
+    tail = [(t, lo, hi) for t, lo, hi in frames if None not in (t, lo, hi) and t >= dur - END_S - 1e-6]
+    if not tail:
+        return ("end_frames", "warn", "no frame stats for the last 0.3 s", "no black or empty frames at the end", "")
+    bad = [f"{t:.2f}s {'black' if hi <= black else 'blank'}" for t, lo, hi in tail if hi <= black or hi - lo <= flat]
+    return ("end_frames", "fail" if bad else "pass", f"{len(bad)}/{len(tail)} frames black/blank",
+            "no black or empty frames in the last 0.3 s", ", ".join(bad[:6]))
+
+
 # ------------------------------------------------------------------ main QC
 def _add(rows, check, status, value, expected="", detail=""):
     rows.append({"check": check, "status": status, "value": value, "expected": expected, "detail": detail})
@@ -263,6 +535,8 @@ def _signal_checks(rows, an, st, pr, fps):
          ", ".join(map(str, fl["flash_frames"][:8])))
     _add(rows, "photosensitivity", "fail" if fl["max_flashes_per_s"] >= 3 else "pass", fl["max_flashes_per_s"],
          "< 3 flashes in any 1 s (Netflix/Harding)", f"worst at {fl['at']:.2f}s" if fl["at"] is not None else "")
+    if st.get("width"):
+        _add(rows, *end_frame_check(an["frames"], st["duration"], bits))
     if an["brng"]:
         badf = sum(1 for b in an["brng"] if b > 0.01) / len(an["brng"])
         strict = pr is not None and pr["vcodec"] == "mpeg2_50"
@@ -281,7 +555,18 @@ def av_sync(path):
             "duration_diff_ms": round((f(ss["audio"], "duration") - f(ss["video"], "duration")) * 1000, 1)}
 
 
-def qc(video, plan_path=None, platform="auto", cps=C.CPS_ADULT):
+def perceptual_checks(plan, st, lang=None):
+    """Caption script, glyph coverage and text-over-face rows for a plan (geometry in plan output pixels)."""
+    texts, O = plan_texts(plan), plan.get("output") or {}
+    try:
+        rows = script_checks(texts, expected_script(plan, lang))
+    except ValueError as e:
+        rows = [("caption_script", "warn", str(e), "a known language code or script", "")]
+    return rows + glyph_checks(plan, texts) + face_checks(plan, O.get("width") or st["width"], O.get("height") or st["height"],
+                                                          float(O.get("duration") or st["duration"]))
+
+
+def qc(video, plan_path=None, platform="auto", cps=C.CPS_ADULT, lang=None):
     plan = load_json(plan_path) if plan_path else None
     st = stream_info(video)
     if platform == "auto":
@@ -302,7 +587,7 @@ def qc(video, plan_path=None, platform="auto", cps=C.CPS_ADULT):
     if plan:
         words = plan.get("words") or []
         for check, status, value, expected, detail in caption_checks(plan, words, fps, cps) + \
-                overlay_checks(plan, st["width"], st["height"], st["duration"]):
+                overlay_checks(plan, st["width"], st["height"], st["duration"]) + perceptual_checks(plan, st, lang):
             _add(rows, check, status, value, expected, detail)
     summary = {s: sum(1 for r in rows if r["status"] == s) for s in ("pass", "warn", "fail", "info")}
     return {"video": os.path.abspath(video), "plan": plan_path, "platform": platform, "stream": st,
@@ -319,18 +604,53 @@ def write_md(rep, path):
     open(path, "w", encoding="utf-8").write("\n".join(L) + "\n")
 
 
+def _self_test():
+    plan = {"language": "hi", "words": [{"w": w} for w in "हर बात तीरा".split()],
+            "elements": [{"type": "text", "text": "<em>Life</em> ہر بات", "start": 1}]}
+    assert script_of("ह") == "DEVANAGARI" and script_of("ب") == "ARABIC" and script_of("।") is None
+    r = script_checks(plan_texts(plan), expected_script(plan))[0]
+    assert r[1] == "fail" and "text@1.00" in r[4], r
+    plan["elements"][0]["text"] = "<em>Life</em> में"
+    assert script_checks(plan_texts(plan), expected_script(plan))[0][1] == "pass"
+    assert script_checks(plan_texts(plan), expected_script({}, "ur"))[0][1] == "fail"
+    track = [{"t": 0, "x": 0.25, "y": 0.2, "w": 0.5, "h": 0.3}, {"t": 10, "x": 0.25, "y": 0.2, "w": 0.5, "h": 0.3}]
+    on = {"type": "text", "text": "hello there", "x": 540, "y": 700, "start": 0, "end": 2}
+    assert face_checks({"track": track, "elements": [on]}, 1080, 1920, 10)[0][1] == "warn"
+    assert face_checks({"track": track, "elements": [dict(on, y=1500), dict(on, end=0.4), dict(on, decor=True)]}, 1080, 1920, 10)[0][1] == "pass"
+    ok = [(i / 30, 20.0, 180.0) for i in range(300)]
+    assert end_frame_check(ok, 10)[0] == "end_frames" and end_frame_check(ok, 10)[1] == "pass"
+    assert end_frame_check(ok[:-3] + [(9.95, 16.0, 17.0)], 10)[1] == "fail"           # black last frame
+    assert end_frame_check(ok[:-3] + [(9.95, 120.0, 124.0)], 10)[1] == "fail"         # flat (empty) last frame
+    rng = parse_font_ranges("@font-face { font-family: 'Mukta'; unicode-range: U+0900-097F, U+20B9; }")
+    assert family_coverage("Mukta", rng)("ह") and not family_coverage("Mukta", rng)("A")
+    arial = os.path.join(FONT_DIRS[0], "arial.ttf")
+    if os.path.exists(arial):
+        for cov in (file_coverage(arial), _pillow_coverage(arial)):
+            assert cov("A") and not cov("ह")
+    log("qc self-test ok")
+
+
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        return _self_test()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("video")
     ap.add_argument("--plan")
     ap.add_argument("--platform", default="auto", help="preset name from deliver.py, 'auto' or 'none'")
+    ap.add_argument("--lang", help="expected caption language or script (hi, ur, en, Devanagari...); "
+                                   "default plan.script / plan.language / plan.profile")
     ap.add_argument("--out-dir")
     ap.add_argument("--kids", action="store_true")
     ap.add_argument("--strict", action="store_true", help="exit 1 if any check fails")
     a = ap.parse_args()
     if a.platform not in ("auto", "none", "podcast", "audio") and a.platform not in PRESETS:
         sys.exit(f"unknown platform {a.platform}")
-    rep = qc(a.video, a.plan, a.platform, C.CPS_KIDS if a.kids else C.CPS_ADULT)
+    if a.lang:
+        try:
+            expected_script({}, a.lang)
+        except ValueError as e:
+            sys.exit(str(e))
+    rep = qc(a.video, a.plan, a.platform, C.CPS_KIDS if a.kids else C.CPS_ADULT, a.lang)
     od = a.out_dir or os.path.dirname(os.path.abspath(a.video))
     stem = os.path.splitext(os.path.basename(a.video))[0]
     save_json(os.path.join(od, f"qc_{stem}.json"), rep)

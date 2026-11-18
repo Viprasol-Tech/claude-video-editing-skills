@@ -35,13 +35,17 @@ XFADE = ("fade wipeleft wiperight wipeup wipedown slideleft slideright slideup s
          "vuslice vdslice hblur fadegrays wipetl wipetr wipebl wipebr squeezeh squeezev zoomin fadefast fadeslow "
          "hlwind hrwind vuwind vdwind coverleft coverright coverup coverdown revealleft revealright revealup "
          "revealdown").split()
-ALIAS = {"dip-black": "fadeblack", "dip-white": "fadewhite", "crossfade": "fade", "whip": "slideleft",
-         "zoom": "zoomin", "push": "slideleft"}
+# "dissolve" = editor-speak cross-dissolve; FFmpeg's own `dissolve` is random-pixel dither, kept as dither-dissolve
+ALIAS = {"dip-black": "fadeblack", "dip-white": "fadewhite", "crossfade": "fade", "dissolve": "fade",
+         "dither-dissolve": "dissolve", "whip": "slideleft", "zoom": "zoomin", "push": "slideleft"}
 IMG_EXT = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
 VID_EXT = (".mp4", ".mov", ".mkv", ".m4v", ".avi", ".webm", ".mts")
 CUT_XF = 0.03          # audio crossfade on a plain cut (click-free edit)
 RATE_MIN, RATE_MAX = 0.25, 4.0
 RATE_STEP = 1.06       # audio of speed ramps: new constant-rate piece every 6 % change
+MIN_PIECE = 0.08       # ...but no ramp audio piece shorter than this (output s): fewer joins
+GUARD = 0.1            # extra source fed to atempo around each piece (s)
+TEMPO_LEAD = 0.021     # atempo output runs about half its window (~21 ms) ahead of its input
 WHIP_BLUR = 48         # px of horizontal box blur on whip transitions
 DUCK_GAIN = 0.25       # clip audio "duck"
 
@@ -250,6 +254,45 @@ def audio_pieces(c, ext_head, ext_tail):
     return pieces
 
 
+def merge_pieces(pieces):
+    """Join source-contiguous ramp steps until each lasts MIN_PIECE of output (rate = exact span ratio)."""
+    out = []
+    for p in pieces:
+        q = out[-1] if out else None
+        if (p[0] is not None and q and q[0] is not None and abs(q[1] - p[0]) < 1e-6
+                and (q[1] - q[0]) / q[2] < MIN_PIECE):
+            a, b = q[0], p[1]
+            out[-1] = (a, b, (b - a) / ((q[1] - q[0]) / q[2] + (p[1] - p[0]) / p[2]))
+        else:
+            out.append(p)
+    if len(out) > 1 and out[-1][0] is not None and out[-2][0] is not None and abs(out[-2][1] - out[-1][0]) < 1e-6 \
+            and (out[-1][1] - out[-1][0]) / out[-1][2] < MIN_PIECE:   # short last step joins its left neighbour
+        (a, m, r1), (_, b, r2) = out[-2], out.pop()
+        out[-1] = (a, b, (b - a) / ((m - a) / r1 + (b - m) / r2))
+    return out
+
+
+def piece_filter(pa, pb, rate):
+    """One constant-rate source piece at its exact output length. atempo outputs nothing for <25 ms of
+    input, runs ~TEMPO_LEAD ahead and loses up to ~25 ms at its edges, so it gets GUARD extra source on
+    both sides and the kept part is cut out of the middle."""
+    d = (pb - pa) / rate
+    fmt = "asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo"
+    st = atempo(rate)
+    if not st:
+        chain = f"[0:a]atrim=start={pa:.5f}:end={pb:.5f},{fmt}"
+    else:
+        g = min(GUARD, pa)
+        lead, k = 0.0, 1.0
+        for p in reversed(st):              # each stage's lead, seen through the stages after it
+            r = float(p.split("=")[1]); lead += TEMPO_LEAD / k; k *= r
+        skip = g / rate - lead
+        chain = (f"[0:a]atrim=start={pa - g:.5f}:end={pb + GUARD:.5f},{fmt}," + ",".join(st)
+                 + (f",atrim=start={skip:.5f}" if skip >= 0 else f",adelay={-skip * 1000:.2f}:all=1"))
+    # exact length; N/SR pts keep concat valid even when a filter emitted no frame at all
+    return chain + f",apad=whole_dur={d:.5f},asetpts=N/SR/TB,atrim=duration={d:.5f}"
+
+
 def render_clip(i, c, W, H, fps, work, tmp, nxt_tr):
     vout = os.path.join(tmp, f"clip{i:03d}.mp4")
     aout = os.path.join(tmp, f"clip{i:03d}.wav")
@@ -272,13 +315,9 @@ def render_clip(i, c, W, H, fps, work, tmp, nxt_tr):
         graph = f"anullsrc=r=48000:cl=stereo,atrim=duration={a1 - a0:.4f}[a]"
     else:
         parts, labels = [], []
-        for k, (pa, pb, rate) in enumerate(audio_pieces(c, eh, et)):
-            if pa is None:
-                parts.append(f"anullsrc=r=48000:cl=stereo,atrim=duration={pb:.5f}[p{k}]")
-            else:
-                parts.append(f"[0:a]atrim=start={pa:.5f}:end={pb:.5f},asetpts=PTS-STARTPTS,aresample=48000,"
-                             f"aformat=sample_fmts=fltp:channel_layouts=stereo,"
-                             + ",".join(atempo(rate) + [f"apad=whole_dur={(pb - pa) / rate:.5f}"]) + f"[p{k}]")
+        for k, (pa, pb, rate) in enumerate(merge_pieces(audio_pieces(c, eh, et))):
+            parts.append((f"anullsrc=r=48000:cl=stereo,atrim=duration={pb:.5f}" if pa is None
+                          else piece_filter(pa, pb, rate)) + f"[p{k}]")
             labels.append(f"[p{k}]")
         vol = float(c.get("volume", 1.0)) * (DUCK_GAIN if mode == "duck" else 1.0)
         tail = f"areverse," if c.get("reverse") else ""
@@ -678,7 +717,41 @@ def auto_spec(files, mode, duration, music, fmt, transition, beats_per_shot, wor
     return spec
 
 
+def self_test():
+    """3 clips (red/blue/testsrc, each with its own tone): dissolve + speed ramp, whip + J-cut."""
+    pcm = lambda f, a=(): np.frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-i", f, *a, "-f", "f32le", "-"],
+                                                       stdout=subprocess.PIPE, check=True).stdout, np.float32)
+    with tempfile.TemporaryDirectory(prefix="vs_tl_test_") as d:
+        for name, v, hz in (("a", "color=c=red", 440), ("b", "color=c=blue", 660), ("c", "testsrc=r=30", 880)):
+            run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"{v}:s=160x284:d=3", "-r", "30", "-f", "lavfi", "-i",
+                 f"sine=f={hz}:r=48000:d=3", "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac",
+                 os.path.join(d, name + ".mp4")])
+        spec = {"width": 160, "height": 284, "fps": 30, "clips": [
+            {"src": "a.mp4"},
+            {"src": "b.mp4", "transition": {"type": "dissolve", "dur": 0.5},
+             "speedRamp": [{"at": 1.2, "rate": 0.4, "ramp": 0.5}, {"at": 2.2, "rate": 1.0, "ramp": 0.3}]},
+            {"src": "c.mp4", "in": 0.5, "transition": {"type": "whip", "dur": 0.3}, "jcut": 0.4}]}
+        _, _, fps, clips = load_spec(spec, d)
+        assert clips[1]["_tr"]["xfade"] == "fade" and ALIAS["dither-dissolve"] == "dissolve"
+        res = build(spec, os.path.join(d, "w"), transcribe=False, spec_base=d)
+        got = probe(res["out"])["duration"]
+        assert abs(got - res["total"]) <= 1.5 / fps, (got, res["total"])
+        mid = res["clips"][1]["out_start"] + res["clips"][1]["transition_dur"] / 2   # true blend, not dither
+        px = np.frombuffer(subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{mid:.3f}", "-i", res["out"], "-frames:v",
+                                           "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE,
+                                          check=True).stdout, np.uint8).reshape(-1, 3).astype(float)
+        assert px[:, 0].std() < 12 and 60 < px[:, 0].mean() < 200 and px[:, 2].mean() > 60, (px.mean(0), px.std(0))
+        x = pcm(res["out"], ("-ac", "1", "-ar", "48000"))
+        rms = np.sqrt((x[:len(x) // 480 * 480].reshape(-1, 480) ** 2).mean(1))[10:-10]   # 10 ms windows
+        assert rms.min() > 0.02, f"audio hole at {(10 + rms.argmin()) / 100:.2f}s"
+        c3 = res["clips"][2]
+        assert c3["audio_start"] < c3["out_start"] + c3["transition_dur"] / 2 - 0.35, c3   # J-cut: sound leads
+    print("timeline self-test OK")
+
+
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        return self_test()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build")

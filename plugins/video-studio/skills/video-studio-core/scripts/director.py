@@ -13,6 +13,7 @@ Heuristics only: Claude makes the final call (see the video-director skill).
 import argparse, glob, json, os, re, subprocess, sys
 import numpy as np
 from vs_common import CORE, die, log, probe, save_json, load_json
+from profile import asr_language, load as load_profile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILLS = os.path.dirname(CORE)
@@ -329,7 +330,8 @@ def plan_command(choice, fx, main, files, goal, platform):
         if fx.get("luma", 255) < 70:
             flags += ["--denoise", "light"]
     flags += ["--platform", platform, "--work", f"edit-{skill}", "--stop-after", "plan"]
-    lang = (fx.get("speech") or {}).get("language")
+    # never forward a ur/pa/sd/ne mis-ID for Hindi-belt speech: the creator profile language wins (default hi)
+    lang = asr_language((fx.get("speech") or {}).get("language"))
     if lang and lang != "en":
         flags += ["--language", lang]
     return {"skin": skins[0], "alt_skins": skins[1:4], "format": fmt, "platform": platform,
@@ -389,6 +391,9 @@ def main():
         if len(ranked) > 1 and ranked[1]["score"] >= top["score"] * 0.85 and not a.goal:
             ask = (f"Close call between `{top['skill']}` and `{ranked[1]['skill']}`. Ask what the video is for "
                    f"(one question), or go with `{top['skill']}`.")
+    if load_profile()["script"] == "Deva" and re.search(r"[؀-ۿ਀-੿]", (fx.get("speech") or {}).get("text", "")):
+        ask = ("The speech came out in Urdu/Punjabi script, not Devanagari. Ask the user for their exact words (one line "
+               "per phrase) and run `transcribe.py --text FILE` so the captions use them.")
     out = {"facts": fx, "ranked": ranked, "recommendation": rec, "ask": ask, "goal": a.goal}
     save_json(os.path.join(a.work, "director.json"), out)
     open(os.path.join(a.work, "director.md"), "w", encoding="utf-8").write(report_md(fx, ranked, rec, ask))

@@ -14,15 +14,20 @@ usage: autocut.py --work WORKDIR [--max-gap 0.35] [--pad 0.08] [--fillers um,uh,
                                                 # basic = the --fillers list (default); remove = + you know, I mean,
                                                 # basically, sort of, like-as-filler, Hindi matlab/toh/na (conservative)
                   [--retakes]                   # drop restarts ("let me start again", repeated openings < 8 s): keep the last take
-                  [--xfade-ms 30]               # crossfade audio joins instead of 12 ms fades
+                  [--xfade-ms 25]               # equal-power (qsin) audio crossfade at every join (default 25, min 20)
                   [--jcut 3]                    # audio leads video by N frames at joins between sentences
+  Pauses come from Silero VAD (bundled with faster-whisper) as well as word gaps: a word Whisper stretched
+  across a pause is shrunk back to its speech, so that pause gets cut. autocut.py --self-test runs the checks.
 """
-import argparse, os, re, tempfile, wave
-from vs_common import load_json, save_json, run, probe, log, die
+import argparse, bisect, os, re, subprocess, sys, tempfile
+from vs_common import load_json, save_json, run, probe, log, die, norm
 
 BASIC_FILLERS = "um,uh,uhm,umm,erm,er,ah,hmm,mm,uhh"
-norm = lambda s: re.sub(r"[^\w']", "", s.lower())
-PUNCT_AFTER = re.compile(r"[,;:.!?…—-]$")
+# Hindi/Haryanvi discourse fillers: removed (policy "remove") only when they stand alone between pauses/punctuation
+HINDI_FILLERS = {norm(x) for x in ("matlab", "toh", "haan", "accha", "acha", "achha", "yaani", "yani",
+                                   "बस", "मतलब", "तो", "हाँ", "हां", "अच्छा", "यानी", "यानि")}
+XFADE_MS, MIN_XFADE_MS = 25, 20           # joins always crossfade; a fade to silence leaves a hole in the noise floor
+PUNCT_AFTER = re.compile(r"[,;:.!?…—\-।॥]$")
 CUES = ["let me start again", "let me start over", "let me try that again", "let me try again", "let me redo that",
         "let me say that again", "let me rephrase", "start again", "start over", "scratch that", "one more time",
         "from the top", "take two", "phir se bolta", "dobara bolta"]
@@ -65,7 +70,7 @@ def find_fillers(words, policy, basic):
             out[i] = words[i]["w"]
         elif n[i] == "like" and (words[i]["w"].endswith(",") or bracketed(words, i, i, 0.25)) and (i == 0 or n[i - 1] not in verbs):
             out[i] = words[i]["w"]
-        elif n[i] in ("matlab", "मतलब", "toh", "तो") and bracketed(words, i, i, 0.25):
+        elif n[i] in HINDI_FILLERS and bracketed(words, i, i, 0.25):
             out[i] = words[i]["w"]
         elif n[i] in ("na", "ना") and gap_before(words, i) > 0.25 and gap_after(words, i) > 0.25:
             out[i] = words[i]["w"]
@@ -121,31 +126,67 @@ def find_retakes(words, skip, n_gram=3, window=8.0):
 
 
 # ---------------- audio ----------------
+def pcm16k(work, src):
+    """Mono float32 16 kHz samples of <work>/audio16k.wav (or the source); None if FFmpeg cannot decode it."""
+    import numpy as np
+    wav = os.path.join(work, "audio16k.wav")
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", wav if os.path.exists(wav) else src, "-f", "f32le", "-ac", "1",
+                        "-ar", "16000", "-"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return np.frombuffer(p.stdout, dtype=np.float32) if p.returncode == 0 else None
+
+
 def load_rms(work, src, hop=0.01):
-    """RMS per 10 ms frame from audio16k.wav (or decoded from source). None when numpy is unavailable."""
+    """RMS per 10 ms frame of the 16 kHz audio. None when numpy is unavailable or the audio cannot be decoded."""
     try:
         import numpy as np
     except ImportError:
         return None
-    wav = os.path.join(work, "audio16k.wav")
-    try:
-        with wave.open(wav, "rb") as f:
-            sr, ch, sw = f.getframerate(), f.getnchannels(), f.getsampwidth()
-            raw = f.readframes(f.getnframes())
-        x = np.frombuffer(raw, dtype={2: np.int16, 4: np.int32}[sw]).astype(np.float32)
-        x = x.reshape(-1, ch).mean(axis=1) if ch > 1 else x
-    except Exception:
-        import subprocess
-        p = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if p.returncode != 0:
-            return None
-        sr, x = 16000, np.frombuffer(p.stdout, dtype=np.float32)
+    x, sr = pcm16k(work, src), 16000
+    if x is None:
+        return None
+    X = np.fft.rfft(x)               # ignore < 150 Hz: wind/handling rumble is not "content" and not a quiet point
+    X[: int(150 * len(x) / sr)] = 0
+    x = np.fft.irfft(X, len(x))
     n = int(sr * hop)
     frames = len(x) // n
     if frames == 0:
         return None
     return np.sqrt((x[:frames * n].reshape(frames, n) ** 2).mean(axis=1) + 1e-12), hop
+
+
+def speech_regions(work, src, min_silence):
+    """[(start, end)] s of speech from Silero VAD (ships inside faster-whisper); None if faster-whisper is missing.
+    Only silences >= min_silence split regions (shorter ones are never cut anyway)."""
+    try:
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+    except ImportError:
+        return None
+    x = pcm16k(work, src)          # not faster_whisper.decode_audio: it breaks on newer PyAV (metadata_errors)
+    if x is None:
+        die(f"cannot decode the audio of {src} (no audio track?)")
+    opts = VadOptions(min_silence_duration_ms=int(min_silence * 1000), speech_pad_ms=30)
+    return [(t["start"] / 16000, t["end"] / 16000) for t in get_speech_timestamps(x, opts)]
+
+
+def vad_fix_words(words, regions, min_fix=0.1):
+    """Whisper often stretches a word over the pause beside it, so the word gaps hide the pause. Shrink such a
+    word to the VAD speech region it overlaps most (when >= min_fix s of it is VAD silence). A word with real
+    speech on both sides of a pause, or none at all, is left alone: never cut sound you haven't heard."""
+    starts = [s for s, _ in regions]
+    out, fixed = [], 0
+    for w in words:
+        ov, j = [], bisect.bisect_left(starts, w["end"]) - 1
+        while j >= 0 and regions[j][1] > w["start"]:
+            s, e = regions[j]
+            ov.append((min(w["end"], e) - max(w["start"], s), s, e)); j -= 1
+        ov.sort(reverse=True)
+        if not ov or ov[0][0] < 0.05 or (len(ov) > 1 and ov[1][0] >= min_fix):
+            out.append(w); continue
+        ns, ne = max(w["start"], ov[0][1]), min(w["end"], ov[0][2])
+        if (ns - w["start"]) + (w["end"] - ne) < min_fix:
+            out.append(w); continue
+        out.append(dict(w, start=round(ns, 3), end=round(ne, 3))); fixed += 1
+    return out, fixed
 
 
 def quietest(rms, lo, hi):
@@ -241,7 +282,7 @@ def audio_ranges(segs, words, fps, jcut, dur):
         return a
     for k in range(len(segs) - 1):
         last_w, next_w = words[segs[k][3]], words[segs[k + 1][2]]
-        if not re.search(r"[.!?…]$", last_w["w"]):
+        if not re.search(r"[.!?…।॥]$", last_w["w"]):
             continue
         j = min(jcut / fps, a[k][1] - (last_w["end"] + 0.02), a[k + 1][0] - segs[k][1])
         if j >= 0.5 / fps:
@@ -250,18 +291,9 @@ def audio_ranges(segs, words, fps, jcut, dur):
 
 
 def graph(segs, aud, xfade, dur):
-    parts, labels = [], []
-    simple = xfade <= 0 and all(abs(s - x[0]) < 1e-6 and abs(e - x[1]) < 1e-6 for (s, e, _, _), x in zip(segs, aud))
-    for i, (s, e, _, _) in enumerate(segs):
-        parts.append(f"[0:v]trim=start={s}:end={e},setpts=PTS-STARTPTS[v{i}]")
-    if simple:                                   # original graph, byte-for-byte
-        for i, (s, e, _, _) in enumerate(segs):
-            d = e - s
-            f = min(0.012, d / 4)
-            parts.append(f"[0:a]atrim=start={s}:end={e},asetpts=PTS-STARTPTS,afade=t=in:d={f},afade=t=out:st={d - f:.4f}:d={f}[a{i}]")
-            labels.append(f"[v{i}][a{i}]")
-        parts.append("".join(labels) + f"concat=n={len(segs)}:v=1:a=1[v][a]")
-        return ";\n".join(parts)
+    """Video: hard cuts. Audio: every join is an equal-power (qsin) crossfade of `xfade` s centred on the cut, so
+    the noise floor runs straight through (uncorrelated sides: cos^2 + sin^2 = 1, no dip)."""
+    parts = [f"[0:v]trim=start={s}:end={e},setpts=PTS-STARTPTS[v{i}]" for i, (s, e, _, _) in enumerate(segs)]
     parts.append("".join(f"[v{i}]" for i in range(len(segs))) + f"concat=n={len(segs)}:v=1:a=0[v]")
     total = sum(e - s for s, e, _, _ in segs)
     if xfade > 0 and len(aud) > 1:
@@ -272,7 +304,7 @@ def graph(segs, aud, xfade, dur):
             parts.append(f"[0:a]atrim=start={s:.4f}:end={e:.4f},asetpts=PTS-STARTPTS[a{i}]")
         cur = "a0"
         for i in range(1, len(ext)):
-            parts.append(f"[{cur}][a{i}]acrossfade=d={x:.4f}:c1=tri:c2=tri[x{i}]"); cur = f"x{i}"
+            parts.append(f"[{cur}][a{i}]acrossfade=d={x:.4f}:c1=qsin:c2=qsin[x{i}]"); cur = f"x{i}"
         parts.append(f"[{cur}]atrim=start={lead0:.4f}:end={lead0 + total:.4f},asetpts=PTS-STARTPTS,"
                      f"afade=t=in:d=0.012,afade=t=out:st={max(0, total - 0.012):.4f}:d=0.012[a]")
     else:
@@ -371,7 +403,7 @@ def main():
     smart = bool(pick(a.smart_cuts, "smart_cuts", False))
     policy = a.filler_policy or ({"remove": "remove", "keep-natural": "keep-natural", "off": "off"}.get(ga.get("fillers")) if g else None) or "basic"
     retakes = bool(pick(a.retakes, "retakes", False))
-    xfade = pick(a.xfade_ms, "xfade_ms", 0) / 1000.0
+    xfade = max(MIN_XFADE_MS, pick(a.xfade_ms, "xfade_ms", XFADE_MS)) / 1000.0  # presets saying 0/15 get 20
     jcut = pick(a.jcut, "jcut_frames", 0)
     keep_all = a.keep_all or (g is not None and not ga.get("enabled", True) and a.max_gap is None)
 
@@ -385,7 +417,14 @@ def main():
     info = probe(src)
     dur, fps = info["duration"], info.get("fps", 30) or 30
     words = tr["words"]
-    basic = {f.strip().lower() for f in (a.fillers or BASIC_FILLERS).split(",") if f.strip()}
+    if words and not keep_all:
+        regions = speech_regions(a.work, src, max_gap)
+        if regions is None:
+            log("VAD unavailable (faster-whisper not installed): pauses come from word timestamps only")
+        else:
+            words, fixed = vad_fix_words(words, regions)
+            log(f"VAD: {len(regions)} speech regions, re-timed {fixed} words that ran over a pause")
+    basic = {norm(f) for f in (a.fillers or BASIC_FILLERS).split(",") if f.strip()}
 
     manual = []
     for r in [x for x in a.cut.split(",") if x.strip()]:
@@ -452,5 +491,29 @@ def main():
         + (" | " + ", ".join(f"{k} {v:.1f}s" for k, v in by.items()) if by else ""))
 
 
+def _self_test():
+    w = lambda t, s, e: {"w": t, "start": s, "end": e}
+    # Devanagari keeps its vowel signs: a stand-alone "तो" is a filler, "तो" inside a phrase is not
+    ws = [w("बात", 0.0, 0.4), w("तो,", 0.8, 1.0), w("ये", 1.4, 1.6), w("है", 1.6, 1.8), w("तो", 1.8, 2.0), w("सही", 2.0, 2.3)]
+    assert find_fillers(ws, "remove", set()) == {1: "तो,"}, find_fillers(ws, "remove", set())
+    # "की बात है, के बात हो..." is not a restart (old norm turned both openings into "क बत ह")
+    rt = [w("की", 0, .2), w("बात", .2, .5), w("है,", .5, .7), w("के", 1.0, 1.2), w("बात", 1.2, 1.5), w("हो", 1.5, 1.7),
+          w("रही", 1.7, 1.9), w("थी", 1.9, 2.1)]
+    assert find_retakes(rt, set()) == [], find_retakes(rt, set())
+    # a pause Whisper swallowed into the next word is found by VAD and cut
+    regs = [(0.29, 1.92), (2.56, 4.35), (4.99, 6.75)]
+    ws = [w("हर", 0.3, 1.9), w("रास्सी", 1.9, 3.14)]
+    assert len(build_segments(ws, {}, 4.0, 0.35, 0.08, 0.08, [])) == 1
+    fw, n = vad_fix_words(ws, regs)
+    assert n == 1 and (fw[1]["start"], fw[1]["end"]) == (2.56, 3.14), fw
+    assert len(build_segments(fw, {}, 4.0, 0.35, 0.08, 0.08, [])) == 2
+    # speech on both sides of a pause, or no speech at all: the word is left alone
+    fw, n = vad_fix_words([w("एक", 4.0, 5.3), w("x", 7.0, 7.2)], regs)
+    assert n == 0 and fw[0]["start"] == 4.0 and fw[1]["end"] == 7.2, fw
+    g = graph([(0.0, 1.0, 0, 0), (2.0, 3.0, 1, 1)], [[0.0, 1.0], [2.0, 3.0]], 0.025, 3.0)
+    assert "acrossfade=d=0.0250:c1=qsin:c2=qsin" in g, g
+    log("autocut self-test OK")
+
+
 if __name__ == "__main__":
-    main()
+    _self_test() if "--self-test" in sys.argv else main()

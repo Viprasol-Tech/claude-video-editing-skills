@@ -8,7 +8,7 @@
 usage: render.py PLAN.json [--out work/composite.mp4] [--preview 3.5]   (preview = render one PNG at t)
        render.py PLAN.json --frames 0,2.5,6   (contact sheet of stills for checking the look)
 """
-import argparse, json, math, os, shutil, subprocess, sys, tempfile
+import argparse, base64, io, json, math, os, shutil, subprocess, sys, tempfile
 from vs_common import RUNTIME, load_json, run, probe, log, die, need
 
 ap = argparse.ArgumentParser()
@@ -16,8 +16,11 @@ ap.add_argument("plan")
 ap.add_argument("--out", default=None)
 ap.add_argument("--preview", type=float, default=None, help="render a single composited still at this time")
 ap.add_argument("--frames", default=None, help="comma list of times -> contact sheet PNG")
-ap.add_argument("--workers", type=int, default=2, help="parallel browser pages")
+# each worker is one Chromium; software raster scales ~linearly to 4 and saturates a 6-core laptop at 6
+ap.add_argument("--workers", type=int, default=max(1, min(4, (os.cpu_count() or 2) // 2)),
+                help="parallel browsers (default: 4, or half the CPU threads if fewer)")
 ap.add_argument("--keep", action="store_true", help="keep rendered PNG frames")
+ap.add_argument("--self-test", action="store_true", help="check that frames reused as unchanged match a fresh capture")
 a = ap.parse_args()
 need("ffmpeg")
 
@@ -104,21 +107,42 @@ def open_page(pw):
         pg.evaluate("Promise.race([window.__ready, new Promise(r=>setTimeout(r,8000))])")
     except Exception as e:
         die(f"overlay page failed to load: {e}")
-    return br, pg
+    return br, pg, pg.context.new_cdp_session(pg)
 
 
-def shot(pg, t, layer, path):
-    vis = pg.evaluate("([t,l]) => window.__render(t,l)", [t, layer])
-    if vis:
-        pg.screenshot(path=path, omit_background=(layer != "bg"), type="png")
-        if layer != "bg":
-            # A fully opaque frame (e.g. a full-screen title card) is saved as RGB, not RGBA. A pixel-format change
-            # mid-sequence breaks FFmpeg's overlay and the rest of the video renders black. Always store RGBA.
-            with Image.open(path) as im:
-                needs = im.mode != "RGBA"
-            if needs:
-                Image.open(path).convert("RGBA").save(path)
-    return vis
+TRANSPARENT = {"color": {"r": 0, "g": 0, "b": 0, "a": 0}}
+# __render plus the layer's state signature. Every element is a pure function of t drawn through inline DOM, so an
+# identical layer DOM means identical pixels. A <canvas> (grain) draws outside the DOM: such a layer never matches.
+STATE_JS = """async ([t, l]) => {
+  if (!(await window.__render(t, l))) return null;
+  const root = document.querySelector('#stage > .layer-' + l);
+  return root.querySelector('canvas') ? 'canvas@' + t : document.documentElement.style.cssText + root.outerHTML;
+}"""
+
+
+def set_layer(cdp, layer):
+    """bg keeps the browser's opaque default background (as page.screenshot did); other layers keep alpha.
+    Never mix with page.screenshot(omit_background=...) on the same page: it resets this override."""
+    cdp.send("Emulation.setDefaultBackgroundColorOverride", {} if layer == "bg" else TRANSPARENT)
+
+
+def capture(cdp, layer, path):
+    # CDP capture with optimizeForSpeed (lighter zlib, same pixels): ~4x faster than page.screenshot()
+    png = base64.b64decode(cdp.send("Page.captureScreenshot", {"format": "png", "optimizeForSpeed": True})["data"])
+    if layer != "bg" and png[25] != 6:   # IHDR colour type, 6 = RGBA
+        # A fully opaque frame (e.g. a full-screen title card) is saved as RGB, not RGBA. A pixel-format change
+        # mid-sequence breaks FFmpeg's overlay and the rest of the video renders black. Always store RGBA.
+        Image.open(io.BytesIO(png)).convert("RGBA").save(path)
+    else:
+        with open(path, "wb") as f:
+            f.write(png)
+
+
+def dup(src, dst):
+    try:
+        os.link(src, dst)
+    except OSError:   # NTFS caps a file at 1023 hard links (FAT has none): a copy is the same frame
+        shutil.copyfile(src, dst)
 
 
 blank = os.path.join(rdir, "blank.png")
@@ -126,8 +150,26 @@ from PIL import Image
 Image.new("RGBA", (W, H), (0, 0, 0, 0)).save(blank)
 
 with sync_playwright() as pw:
-    br, pg = open_page(pw)
+    br, pg, cdp = open_page(pw)
     layers = pg.evaluate("window.__layersUsed")
+
+    if a.self_test:   # the reuse rule on this plan: an unchanged layer state must give unchanged pixels
+        same = 0
+        for l in layers:
+            set_layer(cdp, l); prev = None
+            for i in range(min(NF, 45)):
+                st = pg.evaluate(STATE_JS, [i / FPS, l])
+                if st is None:
+                    prev = None; continue
+                p = os.path.join(rdir, f"selftest_{i % 2}.png"); capture(cdp, l, p)
+                if prev and prev[0] == st:
+                    with Image.open(p) as x, Image.open(prev[1]) as y:
+                        assert x.tobytes() == y.tobytes(), f"layer {l} frame {i + 1}: same state, different pixels"
+                    same += 1
+                prev = (st, p)
+        br.close()
+        log(f"self-test ok: {same} unchanged layer frames matched a fresh capture")
+        sys.exit(0)
 
     if a.preview is not None or a.frames:
         times = [a.preview] if a.preview is not None else [float(x) for x in a.frames.split(",")]
@@ -136,39 +178,59 @@ with sync_playwright() as pw:
             lp = {}
             for l in layers:
                 p = os.path.join(rdir, f"still_{l}_{t:.2f}.png")
-                lp[l] = p if shot(pg, t, l, p) else blank
+                set_layer(cdp, l)
+                if pg.evaluate("([t,l]) => window.__render(t,l)", [t, l]):
+                    capture(cdp, l, p); lp[l] = p
+                else:
+                    lp[l] = blank
             stills.append((t, lp))
         br.close()
     else:
         # parallel pages
         import threading
-        jobs = [(i, l) for l in layers for i in range(NF)]
         for l in layers:
             d = os.path.join(rdir, l); shutil.rmtree(d, ignore_errors=True); os.makedirs(d)
         br.close()
 
     if a.preview is None and not a.frames:
-        nw = max(1, a.workers)
-        chunks = [jobs[k::nw] for k in range(nw)]
-        errors = []
+        nw = max(1, min(a.workers, NF))
+        errors, stats = [], []
 
-        def worker(chunk, idx):
+        def worker(f0, f1, idx):
+            # one contiguous frame range per worker: consecutive frames let an unchanged layer reuse the last PNG
             try:
+                n = n_cap = n_reuse = 0
                 with sync_playwright() as pw2:
-                    b2, p2 = open_page(pw2)
-                    for n, (i, l) in enumerate(chunk):
-                        path = os.path.join(rdir, l, f"{i + 1:05d}.png")
-                        if not shot(p2, i / FPS, l, path):
-                            os.link(blank, path)
-                        if idx == 0 and n % 90 == 0:
-                            log(f"overlay frames {n * nw}/{len(jobs)}")
+                    b2, p2, c2 = open_page(pw2)
+                    for l in layers:
+                        set_layer(c2, l)
+                        prev = None   # (state, path) of the previous frame of this layer
+                        for i in range(f0, f1):
+                            path = os.path.join(rdir, l, f"{i + 1:05d}.png")
+                            st = p2.evaluate(STATE_JS, [i / FPS, l])
+                            if st is None:
+                                dup(blank, path)
+                            elif prev and prev[0] == st:
+                                dup(prev[1], path); n_reuse += 1
+                            else:
+                                capture(c2, l, path); n_cap += 1
+                            prev = None if st is None else (st, path)
+                            if idx == 0 and n % 90 == 0:
+                                log(f"overlay frames {n * nw}/{NF * len(layers)}")
+                            n += 1
                     b2.close()
-            except Exception as e:
+                stats.append((n_cap, n_reuse))
+            except BaseException as e:   # die() raises SystemExit, which a thread would swallow silently
                 errors.append(e)
-        ths = [threading.Thread(target=worker, args=(c, k)) for k, c in enumerate(chunks)]
+        ths = [threading.Thread(target=worker, args=(k * NF // nw, (k + 1) * NF // nw, k)) for k in range(nw)]
         [t.start() for t in ths]; [t.join() for t in ths]
         if errors:
-            die(f"render failed: {errors[0]}")
+            die(f"render failed: {errors[0]!r}")
+        counts = {l: len(os.listdir(os.path.join(rdir, l))) for l in layers}
+        if any(c != NF for c in counts.values()):   # a gap would make FFmpeg freeze the graphics silently
+            die(f"render failed: layer frame counts {counts}, expected {NF} each")
+        caps, reuse = sum(s[0] for s in stats), sum(s[1] for s in stats)
+        log(f"overlay: {caps} captured, {reuse} unchanged reused, {NF * len(layers) - caps - reuse} blank ({nw} workers)")
 
 # ---------- 3. composite ----------
 sp = plan.get("speaker", {"mode": "none"})

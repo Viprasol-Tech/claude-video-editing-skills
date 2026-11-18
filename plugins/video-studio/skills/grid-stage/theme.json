@@ -2,10 +2,10 @@
   "name": "grid-stage",
   "format": "9:16",
   "fps": 30,
-  "fontsUrl": "https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@500;700;800&display=swap",
+  "fontsUrl": "https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@500;700;800&family=Instrument+Serif:ital@0;1&family=Teko:wght@500;600&family=Mukta:wght@500;700;800&family=Rozha+One&display=swap",
   "vars": {
-    "--font-display": "'Anton',sans-serif",
-    "--font-body": "'Inter',sans-serif",
+    "--font-display": "'Anton','Teko',sans-serif",
+    "--font-body": "'Inter','Mukta',sans-serif",
     "--c-bg": "#0B0B0C",
     "--c-accent": "#D4FF3A",
     "--c-accent2": "#9AA0A6",
@@ -38,7 +38,20 @@
         "y": "=H*0.3",
         "w": "=W*1.05",
         "h": "=W*1.05",
-        "speed": 0.4
+        "speed": 0.4,
+        "keys": {
+          "r": [
+            [
+              0,
+              0
+            ],
+            [
+              120,
+              360,
+              "linear"
+            ]
+          ]
+        }
       }
     ],
     "headlines": {
@@ -92,5 +105,6 @@
     "grade": "film",
     "grain": 6,
     "vignette": true
-  }
+  },
+  "sequence": "layercut"
 }

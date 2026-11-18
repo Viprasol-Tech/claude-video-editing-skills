@@ -2,10 +2,10 @@
   "name": "editorial-cards",
   "format": "9:16",
   "fps": 30,
-  "fontsUrl": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@600;800&display=swap",
+  "fontsUrl": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@600;800&family=Mukta:wght@600;800&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap",
   "vars": {
-    "--font-display": "'Inter Tight',sans-serif",
-    "--font-body": "'Inter Tight',sans-serif",
+    "--font-display": "'Inter Tight','Mukta',sans-serif",
+    "--font-body": "'Inter Tight','Mukta',sans-serif",
     "--c-bg": "#F4EFE6",
     "--c-accent": "#111111",
     "--c-accent2": "#E4572E",
@@ -100,7 +100,8 @@
             "h": 150,
             "strokeWidth": 7,
             "drawDur": 0.5,
-            "color": "#E4572E"
+            "color": "#E4572E",
+            "className": "ed-mark"
           }
         ],
         [
@@ -121,7 +122,8 @@
             "h": 120,
             "strokeWidth": 7,
             "drawDur": 0.4,
-            "color": "#E4572E"
+            "color": "#E4572E",
+            "className": "ed-mark"
           }
         ]
       ]
@@ -130,5 +132,6 @@
   "finish": {
     "grade": "none",
     "grain": 3
-  }
+  },
+  "sequence": "explainer"
 }

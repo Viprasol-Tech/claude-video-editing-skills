@@ -2,14 +2,14 @@
   "name": "glow-cutout",
   "format": "9:16",
   "fps": 30,
-  "fontsUrl": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@500;700;800&display=swap",
+  "fontsUrl": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@500;700;800&family=Mukta:wght@500;700;800&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap",
   "vars": {
-    "--font-display": "'Inter',sans-serif",
-    "--font-body": "'Inter',sans-serif",
+    "--font-display": "'Inter','Mukta',sans-serif",
+    "--font-body": "'Inter','Mukta',sans-serif",
     "--c-accent": "#F5B942",
     "--c-accent2": "#FFE2A0",
-    "--cap-size": "54px",
-    "--cap-weight": "800"
+    "--cap-size": "48px",
+    "--cap-weight": "700"
   },
   "speaker": {
     "mode": "full",
@@ -34,11 +34,12 @@
         "text": "{title}",
         "className": "gc-title",
         "x": "=W/2",
-        "y": "=H*0.12",
+        "y": "=H*0.135",
         "w": "=W*0.74",
         "in": "maskUp",
         "html": true,
-        "fit": true
+        "fit": true,
+        "z": 2
       }
     ],
     "captions": {
@@ -68,5 +69,6 @@
     "grade": "film",
     "grain": 5,
     "vignette": true
-  }
+  },
+  "sequence": "aurora"
 }

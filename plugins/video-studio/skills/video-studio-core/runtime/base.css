@@ -1,7 +1,10 @@
 /* Video Studio base styles. Themes override the variables and any class below. */
 :root {
-  --font-display: "Inter", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Inter", "Helvetica Neue", Arial, sans-serif;
+  /* Devanagari faces sit AFTER the Latin ones, so they only ever supply Devanagari glyphs and Latin skins look the same.
+     Skins that set their own stacks should end them with var(--font-deva) too (Nirmala UI ships with Windows). */
+  --font-deva: "Mukta", "Noto Sans Devanagari", "Nirmala UI";
+  --font-display: "Inter", "Helvetica Neue", Arial, var(--font-deva), sans-serif;
+  --font-body: "Inter", "Helvetica Neue", Arial, var(--font-deva), sans-serif;
   --font-cap: var(--font-display);
   --c-bg: #0b0b0d;
   --c-fg: #ffffff;
@@ -18,6 +21,10 @@
   --radius: 28px;
 }
 html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+/* engine.js sets <html lang="hi"> when the plan has Devanagari: no faux italic (slanted matras look broken), and
+   caption rows get room for matras above and below so wrapped lines don't collide */
+:root:lang(hi) { font-synthesis-style: none; }
+:root:lang(hi) .cap-line { line-height: 1.3; }
 #stage { position: relative; width: var(--W); height: var(--H); overflow: hidden; }
 .layer { position: absolute; inset: 0; }
 .el { position: absolute; box-sizing: border-box; }
@@ -142,7 +149,7 @@ html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
    Note: overlays are captured as separate transparent PNG layers, so
    mix-blend-mode cannot reach the video underneath - use alpha only.
    ===================================================================== */
-:root { --font-mono: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace; --c-ui: #ffffff; --c-ui-fg: #111216; --c-ui-muted: #6b6f7a; }
+:root { --font-mono: "JetBrains Mono", "Fira Code", Consolas, "Courier New", var(--font-deva), monospace; --c-ui: #ffffff; --c-ui-fg: #111216; --c-ui-muted: #6b6f7a; }
 
 /* ---------- captions: fill, emoji, presets ---------- */
 .cap-word { position: relative; }
