@@ -119,7 +119,7 @@ SENT_END = re.compile(r"[.!?।॥]$")   # sentence end incl. Devanagari danda /
 
 
 def norm(s: str) -> str:
-    """Lower-case NFC word key that KEEPS combining marks (Devanagari vowel signs are category M, not \w)."""
+    """Lower-case NFC word key that KEEPS combining marks (Devanagari vowel signs are Unicode category M)."""
     s = _ud.normalize("NFC", s or "").lower()
     return "".join(ch for ch in s if ch.isalnum() or ch in "'_" or _ud.category(ch).startswith("M"))
 
