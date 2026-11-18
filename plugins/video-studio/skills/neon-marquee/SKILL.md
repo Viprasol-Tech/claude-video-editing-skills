@@ -1,12 +1,12 @@
 ---
 name: neon-marquee
-description: "Neon Marquee video-editing style for Claude: A huge glowing electric-blue headline scrolls sideways behind your head on every sentence; compact caption chips with the key word in a blue italic box, lime labels and punch-ins. Use for podcast clips, interviews, tech, news and bold opinion reels. Turns a raw talking clip into a finished 9:16 edit with the video-studio-core engine (transcribe, auto-cut, motion graphics, sound, grade)."
+description: "Neon Marquee video-editing style for Claude: Your real shot cut into wide and tight shots per phrase (close-ups, an extreme close-up on the payoff), a huge glowing electric-blue marquee scrolling sideways at the top, compact caption chips with the key word in a blue italic box, a lime label bar, heavy blur transitions and a dark moody grade. Use for podcast clips, interviews, tech, news and bold opinion reels. Turns a raw talking clip into a finished 9:16 edit with the video-studio-core engine (transcribe, auto-cut, motion graphics, sound, grade)."
 license: MIT
 ---
 
 # Neon Marquee
 
-A huge glowing electric-blue headline scrolls sideways behind your head on every sentence; compact caption chips with the key word in a blue italic box, lime labels and punch-ins.
+Your real shot cut into wide and tight shots per phrase (close-ups, an extreme close-up on the payoff), a huge glowing electric-blue marquee scrolling sideways at the top, compact caption chips with the key word in a blue italic box, a lime label bar, heavy blur transitions and a dark moody grade.
 
 - **Best for:** podcast clips, interviews, tech, news and bold opinion reels
 - **Category:** Talking-head reel
@@ -26,6 +26,7 @@ This style runs on the **video-studio-core** skill, which must be installed in t
 
 ```bash
 python CORE/scripts/run.py clip.mp4 --style STYLE --work edit-neon-marquee --stop-after plan
+python CORE/scripts/sequence.py edit-neon-marquee/plan.json --recipe eclipse   # the shot sequence (run.py does this; re-run after editing words)
 # refine edit-neon-marquee/plan.json (see below), then check stills:
 python CORE/scripts/render.py edit-neon-marquee/plan.json --frames 1,3,6,9
 python CORE/scripts/render.py edit-neon-marquee/plan.json
@@ -37,16 +38,22 @@ Open `contact_sheet.png` and look at it before the full render. Pass `--title ".
 
 ## The look
 
-- Your real shot stays; a giant neon-blue headline (the sentence's key words, repeated) slides sideways behind your head.
-- Captions: 2-3 words in a black chip; the key word sits in a blue box in italic serif.
-- Key words also flash a lime label and a snap punch-in. Dark film grade.
+The edit is cut by `sequence.py --recipe eclipse`: every phrase is one shot, and shots alternate (the last phrase is always tight):
+
+- **Wide shot:** the full frame. The caption chip runs until the key word, then a lime label bar slides in from the left with the key phrase (key word to the end of the phrase, max 4 words).
+- **Tight shot:** a close-up with your eye line on the upper third; on the key word it snaps to an extreme close-up (the last phrase holds it to the end) with an impact hit. The caption chip drops below the chin.
+- **Every shot:** a giant glowing electric-blue marquee of the phrase's key words scrolls sideways at the top (direction alternates), over a dark top band. Captions: 2-3 white words in a small black chip; the key word sits in a blue box in italic serif.
+- Shot changes get a heavy out-of-focus blur (`softCuts`) and a whoosh. Dark moody grade (`finish.grade` "moody") with grain and vignette.
+- Key word = the longest of the phrase's last three words, skipping refrains (a word heard in 2+ phrases, like a shayari's "बरगी").
+- Hindi/Devanagari falls back to Baloo 2 (marquee, label), Mukta (captions) and Rozha One (key word). Re-running `sequence.py` replaces only what it wrote.
+- Punch-ins aim at the face from `track.json` (`python CORE/scripts/track.py analyze WORK/cut.mp4 --work WORK` before `make_plan.py`); without it they zoom on the frame centre.
 
 ## Refine the plan
 
 - Read `words.json`, fix mis-heard words (keep their times) and rewrite the hook.
 - Replace weak auto-picked key words and headlines with the words that carry the meaning.
-- Keep the marquee at forehead height (`y`); check a still - the head should cover part of it.
-- Marquee speed: the `keys.tx` pair on each `headline` (px moved over the sentence).
+- Marquee: the `nm-marq` headlines (`y` height, `keys.tx` speed). For a shot with headroom above the head, set their `"layer": "behind"` so the head eclipses the glow.
+- Framing: the `_seq` zooms in `speaker.zooms` (`scale`, `cx`/`cy`); the chip and label `y` in `elements`.
 - Use real names/claims for the lime labels only when they are said in the clip.
 - Element types and fields: `CORE/references/plan-schema.md`, `CORE/references/motion.md`.
 

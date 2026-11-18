@@ -22,7 +22,8 @@ from sequence import phrases, bare   # noqa: E402
 from vs_common import norm, log   # noqa: E402
 
 LEAD = 0.12              # s: a shot starts this long before its first word
-CLOSE, ECU = 1.3, 1.7    # tight-shot framings (scale of the full frame, aimed at the face by render.py)
+CLOSE, ECU = 1.3, 1.6    # tight-shot framings (scale of the full frame)
+EYE = {CLOSE: 0.36, ECU: 0.34}   # where the eye line lands (fraction of H): rule of thirds, chin clear of the chip
 ECU_MIN = 0.5            # s: shortest extreme close-up
 MARQ_SPEED = 240         # px/s the marquee travels
 MARQ_Y, LABEL_Y, CHIP_Y, ECU_CHIP_Y = 0.14, 0.775, 0.785, 0.845   # fractions of H
@@ -40,6 +41,15 @@ def marquee_text(words, idx, refrain, k):
     rest = [i for i in idx if i != k and norm(bare(words[i]["w"])) not in refrain]
     pick = sorted([k] + sorted(rest, key=lambda i: (len(bare(words[i]["w"])), i))[-1:])
     return " ".join(bare(words[i]["w"]) for i in pick)
+
+
+def aim(track, t0, t1, z):
+    """(cx, cy) of a punch-in from the face track (median over the window): the eye line lands at EYE[z].
+    render.py aims centred on the eyes, which pushes a selfie's chin under the caption chip."""
+    fs = [f for f in track if t0 <= f["t"] <= t1] or [min(track, key=lambda f: abs(f["t"] - (t0 + t1) / 2))]
+    med = lambda v: sorted(v)[len(v) // 2]
+    eyes = med([f["y"] + 0.25 * f["h"] for f in fs])   # ponytail: eye line at 1/4 of the detector box, tune if a tracker differs
+    return round(med([f["x"] + f["w"] / 2 for f in fs]), 4), round(eyes + (0.5 - EYE[z]) / z + 0.06, 4)   # +0.06: render lifts cy
 
 
 def build(plan, a):
@@ -97,6 +107,8 @@ def build(plan, a):
 
     for x in els:
         x["_seq"] = True
+    for z in zooms if plan.get("track") else []:
+        z["cx"], z["cy"] = aim(plan["track"], z["start"], z["end"], z["scale"])
     mine = [dict(z, _seq=True) for z in zooms]
     old = [z for z in plan["speaker"].get("zooms", []) if not z.get("_seq")]
     kept = [z for z in old if not any(z["start"] < m["end"] and m["start"] < z["end"] for m in mine)]
@@ -118,6 +130,7 @@ if __name__ == "__main__":   # self-check on the skin-test shayari timings (refr
          ("बरगी,", 8.48, 8.88)]
     plan = {"output": {"width": 1080, "height": 1920, "duration": 9.7, "fps": 30}, "source": "cut.mp4",
             "speaker": {"zooms": [{"start": 3.0, "end": 3.9, "scale": 1.12}, {"start": 0.1, "end": 0.3, "scale": 1.1}]},
+            "track": [{"t": t / 10, "x": 0.2, "y": 0.26, "w": 0.6, "h": 0.4} for t in range(98)],
             "words": [{"w": w, "start": s, "end": e} for w, s, e in T],
             "elements": [{"type": "captions"}, {"type": "headline", "className": "nm-marq"}, {"type": "chip", "className": "nm-label"},
                          {"type": "text", "className": "mine", "text": "keep me"}]}
@@ -137,6 +150,7 @@ if __name__ == "__main__":   # self-check on the skin-test shayari timings (refr
     assert Z[-1]["scale"] == ECU and Z[-1]["end"] > 9.7 - 1 / 30                              # the payoff ECU holds to the last frame
     assert Z[1]["start"] < 3.5 < Z[1]["end"] < 4.16                                           # ECU from "फकीरा" to the next word
     assert caps[1]["dodge"][0]["start"] == Z[1]["start"]
+    assert (Z[0]["cx"], Z[0]["cy"]) == (0.5, round(0.36 + 0.14 / 1.3 + 0.06, 4))           # eye line at 0.36 H in the close-up
     assert [c["at"] for c in plan["softCuts"]] == [2.58, 5.02, 7.38]
     assert {"start": 0.1, "end": 0.3, "scale": 1.1} in plan["speaker"]["zooms"]           # older zoom in a wide shot kept
     assert not any(z.get("scale") == 1.12 for z in plan["speaker"]["zooms"])              # older zoom under a tight shot dropped

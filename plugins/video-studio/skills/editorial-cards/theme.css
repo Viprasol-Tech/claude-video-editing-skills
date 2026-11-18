@@ -6,7 +6,7 @@
 .ed-key .anim { font-family: 'Instrument Serif','Tiro Devanagari Hindi',serif; font-style: italic; font-size: 96px; color: #E4572E; line-height: 1.25; }
 
 /* ---------- explainer recipe (sequence.py --recipe explainer) ---------- */
-.ed-kick .anim { font: 600 32px 'Inter Tight','Mukta',sans-serif; color: #8C8578; letter-spacing: .16em; text-align: left; white-space: nowrap; }
+.ed-kick .anim { font: 600 36px 'Inter Tight','Mukta',sans-serif; color: #7E776B; letter-spacing: .16em; text-align: left; white-space: nowrap; }
 /* white print frame + soft shadow under each footage card (bg layer) */
 .ed-frame .anim { background: #FFFDF8; border-radius: 48px; box-shadow: 0 28px 60px rgba(70,50,20,.22), 0 4px 12px rgba(70,50,20,.12); }
 /* headline: captions mode "fill" - the base word is invisible and keeps its place, its .cap-fill writes it on left to
@@ -26,12 +26,12 @@
 .ed-circ .cap-word.is-key, .ed-circ .cap-word.is-key .cap-fill { padding: .08em .34em; }
 .ed-circ .cap-word.is-key .cap-fill::after { left: 0; right: 0; top: -8%; bottom: -8%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600' preserveAspectRatio='none'%3E%3Cpath d='M 520 70 C 770 62 975 170 955 320 C 935 470 650 540 430 525 C 190 510 25 430 45 285 C 65 150 300 55 575 78' fill='none' stroke='%23E4572E' stroke-width='9' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E"); }
-/* card-blank: the phrase waits in light grey and darkens as it is read; the key word is a "_ _ _" blank that fills in */
+/* card-blank: the phrase waits in light grey and darkens as it is read; the key word is a "_ _ _" blank that is
+   written in coral on its line when it is said (no paper patch over the dashes: front-layer paper renders a shade off) */
 .ed-blank .cap-word, .ed-blank .cap-word.is-active { color: #CDC5B6; }
 .ed-blank .cap-word.is-key { color: transparent; }
 .ed-blank .cap-word.is-key::before { content: ""; position: absolute; left: .1em; right: .1em; bottom: .14em; height: .08em;
   background: repeating-linear-gradient(90deg, #111 0 .42em, transparent .42em .62em); }
-.ed-blank .cap-word.is-key .cap-fill { background: #F4EFE6; }
 /* card-high: yellow highlighter swipes the key word as it is said */
 .ed-hl .cap-word.is-key, .ed-hl .cap-word.is-key .cap-fill { padding: 0 .12em; }
 .ed-hl .cap-word.is-key .cap-fill { color: #111; border-radius: .1em;

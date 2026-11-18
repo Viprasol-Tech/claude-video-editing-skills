@@ -26,6 +26,8 @@ This style runs on the **video-studio-core** skill, which must be installed in t
 
 ```bash
 python CORE/scripts/run.py clip.mp4 --style STYLE --work edit-editorial-cards --stop-after plan
+# run.py already applies the scene recipe; re-run it after fixing words or key words:
+python CORE/scripts/sequence.py edit-editorial-cards/plan.json --recipe explainer
 # refine edit-editorial-cards/plan.json (see below), then check stills:
 python CORE/scripts/render.py edit-editorial-cards/plan.json --frames 1,3,6,9
 python CORE/scripts/render.py edit-editorial-cards/plan.json
@@ -37,18 +39,27 @@ Open `contact_sheet.png` and look at it before the full render. Pass `--title ".
 
 ## The look
 
-- Cream paper page; your footage is a rounded card with a slight tilt that jumps to a new position each sentence.
-- The spoken words appear as big black editorial type at the top, word by word.
-- Key words appear under the card in coral italic serif with a hand-drawn circle or underline.
-- No colour look, light grain.
+Cream paper page, calm soft cuts, one scene per phrase (the `explainer` recipe in `sequence.py`), cycling:
+
+1. **Card low** - small grey kicker (`01 / 04`), big black headline whose words write on as they are spoken, the key
+   word in coral italic serif with a hand-drawn underline; your footage below in a tilted, white-framed rounded card.
+2. **Type only** - no footage: bigger type mid-page, a coral circle draws round the key word as it is said (a phrase
+   shorter than 1.2 s stays on a card instead).
+3. **Card + blank** - the card top-right; the phrase below in light grey, darkening as it is read, the key word a
+   `_ _ _` blank that is written in coral when it is said.
+4. **Card + highlighter** - headline on top, a yellow highlighter swipes the key word, the card lower-left with a coral
+   arrow and a punch-in on the key word.
+
+Hindi / Haryanvi set in Mukta (bold sans) and Tiro Devanagari Hindi (true italic serif). No colour look, light grain.
 
 ## Refine the plan
 
 - Read `words.json`, fix mis-heard words (keep their times) and rewrite the hook.
-- Replace weak auto-picked key words and headlines with the words that carry the meaning.
-- Card positions live in `speaker.layouts` (`rect` px, `radius`, `rot` degrees, `start`/`end`). Keep cards between 34% and 80% of the height so the type stays clear.
+- Key word per phrase: the recipe takes the longest of the last three words, skipping refrains (words heard in 2+
+  phrases). To change one, edit that scene's captions `keywords` (one word). Kicker text: the `ed-kick` elements.
+- Card positions live in `speaker.layouts` (`rect` px, `radius`, `rot` degrees, `start`/`end`); a type scene's card is
+  parked off-frame (x beyond the width). Re-running the recipe rewrites the layouts and everything marked `_seq`.
 - Hand-drawn marks are `scribble` elements (`kind` circle, underline, arrow, box, check, highlight); move them to the word they mark.
-- For long clips, also cut a few full-page type moments (remove the card for a sentence by giving that layout a zero-size rect, or end it early).
 - Element types and fields: `CORE/references/plan-schema.md`, `CORE/references/motion.md`.
 
 ## Check before delivering

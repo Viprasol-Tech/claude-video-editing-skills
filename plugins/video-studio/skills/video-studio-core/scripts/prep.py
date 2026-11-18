@@ -47,7 +47,7 @@ if a.deflicker:
 if a.denoise:
     pre.append("hqdn3d=2:1.5:4:3" if a.denoise == "light" else "hqdn3d=5:4:8:6")
 if a.stabilize:
-    trf = os.path.join(a.work, "stab.trf").replace("\\", "/").replace(":", "\:")
+    trf = os.path.join(a.work, "stab.trf").replace("\\", "/").replace(":", r"\:")
     det = ["ffmpeg", "-y", "-hide_banner"] + (["-ss", str(a.start)] if a.start is not None else []) +           (["-to", str(a.end)] if a.end is not None else []) +           ["-i", a.input, "-vf", f"vidstabdetect=shakiness=6:accuracy=12:result='{trf}'", "-f", "null", "-"]
     try:
         log("stabilising: motion analysis pass")
