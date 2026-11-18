@@ -140,6 +140,21 @@ def ribbon(plan, a):
 RECIPES = {"ribbon": ribbon}
 
 
+def _load_recipes():
+    """Plug-in recipes: scripts/recipes/<name>.py exposing build(plan, args) -> plan."""
+    import importlib.util, glob
+    for f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "recipes", "*.py"))):
+        name = os.path.splitext(os.path.basename(f))[0]
+        if name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(f"recipe_{name}", f)
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        RECIPES[name] = mod.build
+
+
+_load_recipes()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("plan")

@@ -1,5 +1,5 @@
 """Shared helpers for Video Studio scripts."""
-import json, os, shutil, subprocess, sys
+import re, json, os, shutil, subprocess, sys
 
 CORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNTIME = os.path.join(CORE, "runtime")
@@ -111,3 +111,17 @@ def parse_format(s):
         w, h = s.lower().split("x")
         return int(w), int(h)
     die(f"unknown format '{s}'. Use 9:16, 1:1, 4:5, 16:9 or WIDTHxHEIGHT")
+
+
+# ---- text helpers shared by every script (Indic-safe) ----
+import unicodedata as _ud
+SENT_END = re.compile(r"[.!?।॥]$")   # sentence end incl. Devanagari danda / double danda
+
+
+def norm(s: str) -> str:
+    """Lower-case NFC word key that KEEPS combining marks (Devanagari vowel signs are category M, not \w)."""
+    s = _ud.normalize("NFC", s or "").lower()
+    return "".join(ch for ch in s if ch.isalnum() or ch in "'_" or _ud.category(ch).startswith("M"))
+
+
+assert norm("बरगी,") == "बरगी" and norm("Hello!") == "hello" and SENT_END.search("है।")
