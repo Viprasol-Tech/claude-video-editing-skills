@@ -11,6 +11,7 @@ No account, no watermark, no credits, no cloud. Hindi / Devanagari ready.
 [![License: MIT](https://img.shields.io/badge/license-MIT-7b3df0?style=for-the-badge)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-skills_%2B_plugin-d97757?style=for-the-badge)](https://docs.claude.com/en/docs/claude-code)
 [![Skills](https://img.shields.io/badge/skills-95-2e5bff?style=for-the-badge)](#-whats-inside)
+[![CI](https://img.shields.io/github/actions/workflow/status/Viprasol-Tech/claude-video-editing-skills/ci.yml?branch=main&style=for-the-badge&label=tests)](https://github.com/Viprasol-Tech/claude-video-editing-skills/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-2.2.0-22c55e?style=for-the-badge)](CHANGELOG.md)
 
 `Windows` · `macOS` · `Linux` · runs on a laptop CPU (no GPU needed)
@@ -319,6 +320,10 @@ References: `video-studio-core/references/craft.md`, `timeline.md`, `color.md`, 
 - Automated QC is a set of heuristics: average-luma flash detection, stream-timing A/V sync and box-based safe zones. It does not replace a watch-down.
 - Translation, chapter titles, post copy and audio-description scripts are drafted by Claude from the transcript and the picture. Check them.
 - Use only music, footage, fonts and reviews you have the rights to. `testimonial-card` and `testimonial-film` are for real customers and real words only.
+
+## 🤝 Contributing
+
+New styles, genres, scene recipes, fixes and docs are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), run `python tests/validate_repo.py`, and open a pull request. Questions and show-and-tell go to [Discussions](https://github.com/Viprasol-Tech/claude-video-editing-skills/discussions); bugs and requests use the [issue forms](https://github.com/Viprasol-Tech/claude-video-editing-skills/issues/new/choose).
 
 ## Licence
 
