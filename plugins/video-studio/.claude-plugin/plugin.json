@@ -1,7 +1,7 @@
 {
   "name": "video-studio",
-  "version": "2.1.0",
-  "description": "A complete professional video editor for Claude. Hand any footage to video-director and it decides and runs the edit: 42 genre skills (weddings, podcasts, ads, docs, reels, music videos...), 5 finishing/delivery skills and 40 style skins on one engine - editor-grade cuts, multi-clip timelines, face-follow reframe, colour grading, sound mix to platform loudness, motion graphics, subtitles, thumbnails and QC. Free and local.",
+  "version": "2.2.0",
+  "description": "A complete free, local video editor for Claude Code. video-director reads any footage and runs the edit: 42 genre skills, 46 style skins with designed scene sequences, 5 finishing/delivery skills on one engine - editor-grade cuts, timelines, reframe, colour, sound mix to platform loudness, motion graphics, Hindi/Devanagari captions, subtitles, thumbnails, review app and QC.",
   "author": {
     "name": "Viprasol"
   },
@@ -17,6 +17,9 @@
     "audio-mixing",
     "wedding",
     "podcast",
-    "youtube"
+    "youtube",
+    "hindi",
+    "devanagari",
+    "claude-code-skills"
   ]
 }

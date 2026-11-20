@@ -23,6 +23,10 @@ v2 (all optional):
   --deliver youtube,reels  extra platform exports with deliver.py after finishing
 """
 import argparse, os, subprocess, sys
+import sys as _sys
+for _st in (_sys.stdout, _sys.stderr):  # UTF-8 output on Windows (Devanagari logs)
+    if hasattr(_st, "reconfigure"):
+        _st.reconfigure(encoding="utf-8", errors="replace")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 ap = argparse.ArgumentParser()

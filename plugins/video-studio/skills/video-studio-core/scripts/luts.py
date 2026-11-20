@@ -16,6 +16,10 @@ They are APPROXIMATE technical conversions, not manufacturer LUTs: prefer the of
 import argparse
 import os
 import numpy as np
+import sys as _sys
+for _st in (_sys.stdout, _sys.stderr):  # UTF-8 output on Windows (Devanagari logs)
+    if hasattr(_st, "reconfigure"):
+        _st.reconfigure(encoding="utf-8", errors="replace")
 
 CORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LUT_DIR = os.path.join(CORE, "luts")

@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.2.0 (2026-11-20)
+
+### Added
+
+- Scene recipes for five more skins, auto-applied by `run.py` (`theme.json` `"sequence"`): `aurora` (glow-cutout), `retro` (poster-pop), `explainer` (editorial-cards), `eclipse` (neon-marquee), `layercut` (grid-stage). Recipes are plug-ins in `scripts/recipes/`.
+- Hindi/Haryanvi: `profile.py` creator profile (language, script, platform, fonts); risky detections (ur/pa/sd/ne) fall back to the profile language; `transcribe.py --text` maps your own lines onto the speech timing; Devanagari key-word scoring and stop list; `poetry-reel` genre preset.
+- Local review app: `app/server.py` (FastAPI, 127.0.0.1 + token): play, fix caption words, change style, re-plan, stills, render, live log.
+- QC perceptual checks: caption script vs language, missing glyphs, text over the face, black tail.
+- Matte: guided-filter edges, motion-aware smoothing, lossless output, `matte.json` edge contact (planners avoid showing frame edges).
+- Audio: equal-power crossfades and room tone at every join, Silero VAD silence map, wind/rumble high-pass.
+
+### Changed
+
+- Overlay rendering about 2.3x faster (faster capture, frame reuse), same output.
+- Grapheme-safe text effects (Intl.Segmenter) and danda-aware caption breaks; Devanagari font fallbacks.
+- Thumbnails pick fonts by script (no tofu) and keep titles off the face.
+
+### Fixed
+
+- Windows: printing Devanagari through a pipe no longer crashes (UTF-8 output guard).
+- Timeline speed ramps no longer crash; `dissolve` is a true crossfade (`dither-dissolve` keeps the old look).
+- The last headline no longer drops to black at the end.
+
 ## v2.1.0 (2026-11-17)
 
 ### Added

@@ -1,6 +1,11 @@
 """Shared helpers for Video Studio scripts."""
 import re, json, os, shutil, subprocess, sys
 
+# Windows consoles/pipes default to cp1252: printing Devanagari would crash. Force UTF-8 output.
+for _st in (sys.stdout, sys.stderr):
+    if hasattr(_st, "reconfigure"):
+        _st.reconfigure(encoding="utf-8", errors="replace")
+
 CORE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNTIME = os.path.join(CORE, "runtime")
 

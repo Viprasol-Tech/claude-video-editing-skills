@@ -1,91 +1,115 @@
-# Claude Video Editing Skills (Video Studio) v2.0.0
+<div align="center">
 
-A complete professional video editor for Claude. Free, local, open source (MIT).
-Raw footage goes in. A cut, graded, mixed and delivered edit comes out, with subtitles, thumbnails and a QC report.
-Everything runs on your own computer: no account, no watermark, no credits, no cloud.
+# 🎬 Claude Video Editing Skills
 
-- **42 genre skills** decide *how it is cut*: weddings, podcasts, ads, documentaries, reels, music videos and more.
-- **5 utility skills** handle finishing, platform versions, accessibility, NLE hand-off and review rounds.
-- **46 style skins** decide *how it looks*: captions, titles, cards and graphics.
-- **1 core engine** (`video-studio-core`) holds the tools and the editor's judgement that every skill uses.
+### A complete, free, local video editor for Claude Code
 
-Run any genre with any skin: `wedding-highlight` + `doc-real`, or `retention-reel` + `halo-cut`.
+**Raw clip in → cut, graded, mixed, captioned and delivered edit out.**<br>
+No account, no watermark, no credits, no cloud. Hindi / Devanagari ready.
 
-## How it thinks
+[![Stars](https://img.shields.io/github/stars/Viprasol-Tech/claude-video-editing-skills?style=for-the-badge&logo=github&color=f5b942)](https://github.com/Viprasol-Tech/claude-video-editing-skills/stargazers)
+[![License: MIT](https://img.shields.io/badge/license-MIT-7b3df0?style=for-the-badge)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-skills_%2B_plugin-d97757?style=for-the-badge)](https://docs.claude.com/en/docs/claude-code)
+[![Skills](https://img.shields.io/badge/skills-95-2e5bff?style=for-the-badge)](#-whats-inside)
+[![Version](https://img.shields.io/badge/version-2.2.0-22c55e?style=for-the-badge)](CHANGELOG.md)
 
-| layer | what it decides | examples |
-| --- | --- | --- |
-| **Director** (the boss) | watches and listens to the footage, picks the genre, skin, format, platform and clean-up | `video-director` |
-| **Genre skill** (editorial logic) | structure, pacing, cut rules, transitions, sound, loudness, deliverables | `podcast-episode`, `wedding-india`, `trailer-teaser` |
-| **Style skin** (the look) | caption style, fonts, colours, graphics, default look | `halo-cut`, `essay-mode`, `news-desk` |
-| **Core** (engine + editor brain) | transcription, cuts, timeline, reframe, colour, motion, sound, delivery, QC | `video-studio-core` |
+`Windows` · `macOS` · `Linux` · runs on a laptop CPU (no GPU needed)
 
-The core's editor brain follows working conventions from professional editing. It scores cut points with Murch's Rule of Six, sets pacing targets per genre, checks the hook and retention beats, keeps overlays inside safe zones, and limits caption reading speed. It then reviews its own plan (`editor.py review --fix`). All of these are heuristics: they flag problems, and Claude and you decide.
+[Quick start](#-quick-start) · [What's inside](#-whats-inside) · [How it works](#-how-it-works) · [Styles](#style-skins-46) · [Genres](#genre-skills-42) · [Catalog](docs/catalog.md) · [Changelog](CHANGELOG.md)
 
-## Quick start
+</div>
 
-**1. Install the skills.** Pick one way.
+---
 
-Installer (copies every skill to `~/.claude/skills`):
+## ✨ Just say what you want
 
-```bash
-git clone https://github.com/Viprasol-Tech/claude-video-editing-skills
-cd claude-video-editing-skills
-bash install.sh                                        # macOS / Linux
-powershell -ExecutionPolicy Bypass -File install.ps1   # Windows
+```text
+> Edit this video: C:\clips\talk.mp4
+> Make a 30 s Instagram reel from podcast.mp4 with the glass-ribbon style
+> Cut a wedding highlight from the wedding/ folder on song.mp3, 4 minutes
+> These are my shayari lines - put them as captions, keep the song at the end
 ```
 
-Plugin marketplace:
+`video-director` watches and listens first (speech, language, faces, music, light, length), picks the genre, style, format and platform, and runs the whole edit through to delivery and QC. You can also name any genre or style yourself.
+
+## 🚀 What's new in v2.2
+
+| | |
+| --- | --- |
+| 🎞️ **Designed scene sequences** | Styles now change scene every phrase like pro reels: speaker scenes, full-screen type scenes, glass cards, typing search bars, blur transitions. Six recipes: `ribbon`, `aurora`, `retro`, `explainer`, `eclipse`, `layercut`, applied automatically by `run.py`. |
+| 🇮🇳 **Hindi / Haryanvi first-class** | Creator profile (language, script, platform), no more Urdu-script captions, `transcribe.py --text` puts *your own* lyrics/shayari on the speech timing, grapheme-safe text animation, Devanagari thumbnails, a `poetry-reel` genre. |
+| ⚡ **2.3× faster renders** | Faster overlay capture with frame reuse, same pixels. |
+| ✂️ **Cuts that sound professional** | Equal-power crossfades and room tone at every join, VAD silence detection, wind/rumble filter. |
+| 🧑‍🎨 **Cleaner cut-outs** | Guided-filter matte edges, steadier masks, edge-contact detection so layouts never show frame edges; blurred or replaced backgrounds with a rim glow. |
+| 🖥️ **Local review app** | `python video-studio-core/app/server.py --root <folder>`: watch, fix caption words, switch style, re-render. Bound to 127.0.0.1 with a token. |
+| ✅ **Honest QC** | Catches wrong caption script, missing glyphs, text over the face and black frames at the end. |
+
+## 📦 What's inside
+
+| | count | decides | examples |
+| --- | ---: | --- | --- |
+| 🎬 **Director** | 1 | what the video should be, then runs it | `video-director` |
+| ✂️ **Genre skills** | 42 | structure, pacing, cut rules, sound, deliverables | `retention-reel`, `podcast-episode`, `wedding-india`, `music-video` |
+| 🎨 **Style skins** | 46 | captions, fonts, graphics, scene recipes | `glass-ribbon`, `glow-cutout`, `poster-pop`, `halo-cut` |
+| 🧰 **Utility skills** | 5 | finishing, platform packs, accessibility, NLE hand-off, review rounds | `platform-pack`, `editor-handoff` |
+| ⚙️ **Core engine** | 1 | transcription, cuts, timeline, reframe, colour, motion, sound, delivery, QC | `video-studio-core` |
+
+Run any genre with any skin: `wedding-highlight` + `doc-real`, or `retention-reel` + `glass-ribbon`.
+
+## ⚡ Quick start
+
+**Option A: Claude Code plugin**
 
 ```bash
 claude plugin marketplace add Viprasol-Tech/claude-video-editing-skills
 claude plugin install video-studio@claude-video-editing-skills
 ```
 
-(Inside Claude Code the same works as `/plugin marketplace add ...` and `/plugin install ...`.)
-
-By hand: copy any skill folders from `plugins/video-studio/skills/` into `~/.claude/skills/`. Always copy `video-studio-core` too, because every skill needs it.
-
-**2. Install the tools once.**
+**Option B: installer** (copies every skill to `~/.claude/skills`)
 
 ```bash
-pip install faster-whisper playwright numpy pillow opencv-python mediapipe
-python -m playwright install chromium
-# FFmpeg (full build) on PATH:
-brew install ffmpeg        # macOS
-winget install ffmpeg      # Windows
-sudo apt install ffmpeg    # Linux
+git clone https://github.com/Viprasol-Tech/claude-video-editing-skills
+cd claude-video-editing-skills
+powershell -ExecutionPolicy Bypass -File install.ps1   # Windows
+bash install.sh                                        # macOS / Linux
 ```
 
-**3. Check the setup.**
+**Then install the tools once**
 
 ```bash
+pip install faster-whisper playwright numpy pillow opencv-contrib-python mediapipe fastapi uvicorn fonttools
+python -m playwright install chromium
+winget install ffmpeg   # Windows  (macOS: brew install ffmpeg · Linux: sudo apt install ffmpeg)
 python ~/.claude/skills/video-studio-core/scripts/check_env.py
 ```
 
-It prints an exact fix for anything missing. It also checks the FFmpeg filters v2 uses (xfade, lut3d, loudnorm, sidechaincompress and others) and lists the optional add-ons.
+`check_env.py` prints the exact fix for anything missing. Restart Claude Code, then say **"edit this video: path/to/clip.mp4"**.
 
-## Use it
+## 🧠 How it works
 
-**Easiest: just hand over the footage.** The `video-director` skill reads it before deciding anything. It measures speech, language, faces, music and beat, screen-recording look, shot rate, light, orientation and length. It then picks the genre skill, skin, format and platform, and runs the whole edit:
+```mermaid
+flowchart LR
+  A[🎥 Footage] --> B[video-director<br/>reads it, decides]
+  B --> C[prep · transcribe<br/>autocut · matte]
+  C --> D[make_plan + scene recipe]
+  D --> E[render<br/>HTML motion · FFmpeg]
+  E --> F[finish<br/>grade · mix · loudness]
+  F --> G[deliver + QC<br/>Reels · Shorts · YouTube · SRT]
+  D -.-> R[review app<br/>fix captions, re-render]
+  R -.-> D
+```
 
-> Edit this video. *(any clip, folder of clips, photos, voice recording or song)*
+| layer | what it decides | examples |
+| --- | --- | --- |
+| **Director** (the boss) | watches and listens to the footage, picks genre, skin, format, platform and clean-up | `video-director` |
+| **Genre skill** (editorial logic) | structure, pacing, cut rules, transitions, sound, loudness, deliverables | `podcast-episode`, `wedding-india`, `trailer-teaser` |
+| **Style skin** (the look) | captions, fonts, colours, graphics, scene recipe | `glass-ribbon`, `essay-mode`, `news-desk` |
+| **Core** (engine + editor brain) | transcription, cuts, timeline, reframe, colour, motion, sound, delivery, QC | `video-studio-core` |
 
-> Make something good for Instagram from the `trip/` folder and `song.mp3`.
+The editor brain scores cut points with Murch's Rule of Six, sets pacing targets per genre, checks hook and retention beats, keeps overlays inside safe zones and limits caption reading speed, then reviews its own plan (`editor.py review --fix`). These are heuristics: they flag problems, and Claude and you decide.
 
-`python CORE/scripts/director.py FILES --goal "..."` writes `director.md` with the facts, the ranked choices with reasons, and the exact `run.py` command.
-
-**Or choose yourself.** Name a genre skill, a skin, or both.
-
-> Make a 30-second reel from `talk.mp4` with **retention-reel** and the **halo-cut** skin. Hook: "I quit my job for this". Deliver Reels, TikTok and Shorts.
-
-> Cut a 4-minute **wedding-highlight** from the `wedding/` folder on `song.mp3`, with the vows as the story spine. Add a 60 s vertical teaser.
-
-> Edit `episode.mp4` and `camB.mp4` as a **podcast-episode**, then use **platform-pack** for YouTube, a podcast MP3 and six vertical clips.
-
-Claude transcribes, cuts, plans, checks stills, renders, grades, mixes, delivers and runs QC. It then reports what was cut, the structure, the look, the measured loudness and every file path.
-
-The same pipeline from the command line:
+<details>
+<summary><b>Command-line pipeline</b> (what Claude runs for you)</summary>
 
 ```bash
 python CORE/scripts/run.py clip.mp4 --style SKIN --genre retention-reel --smart-cuts --retakes --work edit-x --stop-after plan
@@ -97,8 +121,9 @@ python CORE/scripts/deliver.py edit-x/plan.json --to reels,tiktok,shorts
 python CORE/scripts/qc.py edit-x/final.mp4 --plan edit-x/plan.json
 ```
 
-`CORE` is the `video-studio-core` folder. `SKIN` is a style skin folder, such as `~/.claude/skills/halo-cut`.
-`run.py --help` lists every option. `--clips`, `--timeline` and `--auto montage|story|highlights` cover multi-clip work, and `--reframe 9:16` adds a face-follow reframe. `--broll DIR`, `--music`, `--platform` and `--deliver youtube,reels` are also available.
+`CORE` is the `video-studio-core` folder, `SKIN` a style folder such as `~/.claude/skills/glass-ribbon`. `run.py --help` lists every option: `--clips`, `--timeline`, `--auto montage|story|highlights`, `--reframe 9:16`, `--broll DIR`, `--music`, `--platform`, `--deliver youtube,reels`. Hindi lyrics/shayari: `python CORE/scripts/transcribe.py --work edit-x --text lines.txt`. Creator profile: `python CORE/scripts/profile.py show`.
+
+</details>
 
 ## Genre skills (42)
 
@@ -230,9 +255,9 @@ Every move, with its exact plan field or flag and an honest Ready / Upgrade / He
 ## Requirements
 
 - Claude Code (or Cowork on desktop) with skills enabled
-- Python 3.9 or newer (3.10+ recommended)
+- Python 3.10 or newer (tested on 3.14)
 - FFmpeg 7, 8 or 9, full build, with `ffprobe` on PATH
-- `pip install faster-whisper playwright numpy pillow opencv-python mediapipe`, then `python -m playwright install chromium`
+- `pip install faster-whisper playwright numpy pillow opencv-contrib-python mediapipe fastapi uvicorn fonttools`, then `python -m playwright install chromium`
 - About 500 MB of disk for the first Whisper model (`small`). The person-matte model (~16 MB) downloads on first use.
 - Internet only for the first model downloads and Google Fonts. Offline, fallback fonts are used.
 
@@ -283,14 +308,13 @@ References: `video-studio-core/references/craft.md`, `timeline.md`, `color.md`, 
 
 ## Limits (honest)
 
-- **Tested on synthetic footage.** The test bench uses generated clips and test charts. Face tracking, reframe, the person matte and skin protection have not been tested on a wide range of real faces, skin tones, lighting or profiles. Check every contact sheet.
+- **Limited real-footage testing.** Tested on generated clips and on real low-resolution phone footage (Hindi/Haryanvi). Face tracking, the person matte and skin protection have not been tested on a wide range of faces, skin tones, lighting or profiles. Check every contact sheet.
 - **No GPU features by default.** Object removal, upscaling, AI frame interpolation, depth effects and generative video are not included. Optical-flow slow motion uses FFmpeg `minterpolate`, which is slow and can warp complex motion.
 - **No lip-sync** and no voice cloning. Dubs are voice-over style, with synthetic offline voices.
 - **Log to Rec.709 LUTs are approximate.** They are generated from published curve and gamut formulas, not from manufacturer data. Use the official camera LUT (`color.lut`) when you have one.
 - **Skin protection is hue-range based** inside the LUT, not a face mask.
 - Face detection misses faces smaller than about 5% of the frame width and profile faces. With no face, the reframe centre-crops.
 - Multicam switching does not sync cameras by waveform; every file must start at the same moment.
-- Speaker zoom punches are centred on the frame (or `focusX/focusY`), not on the tracked face.
 - Netflix loudness is measured on the full programme, not dialogue-gated. SCC captions are not produced (there is no free CEA-608 encoder). HDR deliveries are not produced.
 - Automated QC is a set of heuristics: average-luma flash detection, stream-timing A/V sync and box-based safe zones. It does not replace a watch-down.
 - Translation, chapter titles, post copy and audio-description scripts are drafted by Claude from the transcript and the picture. Check them.
@@ -299,4 +323,14 @@ References: `video-studio-core/references/craft.md`, `timeline.md`, `color.md`, 
 ## Licence
 
 MIT. See [`LICENSE`](LICENSE). Optional add-ons and models keep their own licences.
-See [`CHANGELOG.md`](CHANGELOG.md) for what changed in v2.0.0.
+See [`CHANGELOG.md`](CHANGELOG.md) for what changed.
+
+---
+
+<div align="center">
+
+**If this saves you editing time, please ⭐ the repo** - it helps other creators find it.
+
+Made by [Viprasol](https://github.com/Viprasol-Tech) · Issues and pull requests welcome
+
+</div>

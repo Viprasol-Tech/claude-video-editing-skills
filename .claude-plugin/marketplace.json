@@ -8,7 +8,7 @@
     {
       "name": "video-studio",
       "source": "./plugins/video-studio",
-      "description": "Complete free video editor: 42 genre skills + 5 finishing/delivery skills + 40 style skins on one local engine (cuts, timeline, reframe, colour, sound, motion graphics, delivery, QC)."
+      "description": "Complete free video editor: video-director + 42 genre skills + 46 style skins (scene recipes) + 5 finishing/delivery skills on one local engine."
     }
   ]
 }

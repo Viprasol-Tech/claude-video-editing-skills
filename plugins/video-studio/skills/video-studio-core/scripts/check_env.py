@@ -6,6 +6,10 @@ Optional add-ons unlock extra features. Some optional models have NON-COMMERCIAL
 personal use, never bundled in this MIT repo - install them yourself if you want them.
 """
 import importlib, shutil, subprocess, sys
+import sys as _sys
+for _st in (_sys.stdout, _sys.stderr):  # UTF-8 output on Windows (Devanagari logs)
+    if hasattr(_st, "reconfigure"):
+        _st.reconfigure(encoding="utf-8", errors="replace")
 
 ok = True
 
