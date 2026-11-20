@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/social-preview.png" alt="Claude Video Editing Skills: raw clip in, finished edit out. Cuts, captions, colour, sound mix and reels, fully local." width="100%">
+
 # 🎬 Claude Video Editing Skills
 
 ### A complete, free, local video editor for Claude Code
