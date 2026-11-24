@@ -321,6 +321,24 @@ References: `video-studio-core/references/craft.md`, `timeline.md`, `color.md`, 
 - Translation, chapter titles, post copy and audio-description scripts are drafted by Claude from the transcript and the picture. Check them.
 - Use only music, footage, fonts and reviews you have the rights to. `testimonial-card` and `testimonial-film` are for real customers and real words only.
 
+## 🎁 More free Claude Code plugins from Viprasol
+
+Get them all with one marketplace:
+
+```bash
+claude plugin marketplace add Viprasol-Tech/claude-plugins
+claude plugin install <plugin>@viprasol
+```
+
+| Plugin | For |
+| --- | --- |
+| [`trading-studio`](https://github.com/Viprasol-Tech/claude-trading-skills) | Pine Script v6, MQL5 Expert Advisors, backtest audits, position sizing |
+| [`tradingview-automation`](https://github.com/Viprasol-Tech/claude-tradingview-automation-skills) | TradingView alerts to real orders: webhooks, Zerodha / Angel One, Binance, MT5 |
+| [`crypto-bots`](https://github.com/Viprasol-Tech/claude-crypto-bot-skills) | exchange bots: signing, order precision, order books, liquidation maths |
+| [`fintech-studio`](https://github.com/Viprasol-Tech/claude-fintech-skills) | payments, ledgers, webhooks, reconciliation, PCI DSS, KYC/AML |
+| [`india-stack`](https://github.com/Viprasol-Tech/claude-india-stack-skills) | UPI, GST, Aadhaar eKYC, Account Aggregator, DPDP |
+| [`voice-agents`](https://github.com/Viprasol-Tech/claude-voice-agent-skills) | AI phone agents: telephony, latency, testing, compliance |
+
 ## 🤝 Contributing
 
 New styles, genres, scene recipes, fixes and docs are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), run `python tests/validate_repo.py`, and open a pull request. Questions and show-and-tell go to [Discussions](https://github.com/Viprasol-Tech/claude-video-editing-skills/discussions); bugs and requests use the [issue forms](https://github.com/Viprasol-Tech/claude-video-editing-skills/issues/new/choose).
