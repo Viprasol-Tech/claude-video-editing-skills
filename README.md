@@ -336,6 +336,7 @@ claude plugin install <plugin>@viprasol
 | [`tradingview-automation`](https://github.com/Viprasol-Tech/claude-tradingview-automation-skills) | TradingView alerts to real orders: webhooks, Zerodha / Angel One, Binance, MT5 |
 | [`options-desk`](https://github.com/Viprasol-Tech/claude-options-trading-skills) | options software: Greeks and IV, spread payoffs and orders, NSE F&O rules |
 | [`prop-firm-guard`](https://github.com/Viprasol-Tech/claude-prop-firm-skills) | prop-firm rules: FTMO/Topstep drawdowns, challenge odds, MT5 equity guard |
+| [`market-data`](https://github.com/Viprasol-Tech/claude-market-data-skills) | market data you can trust: adjustments, quality checks, bars, calendars |
 | [`crypto-bots`](https://github.com/Viprasol-Tech/claude-crypto-bot-skills) | exchange bots: signing, order precision, order books, liquidation maths |
 | [`fintech-studio`](https://github.com/Viprasol-Tech/claude-fintech-skills) | payments, ledgers, webhooks, reconciliation, PCI DSS, KYC/AML |
 | [`india-stack`](https://github.com/Viprasol-Tech/claude-india-stack-skills) | UPI, GST, Aadhaar eKYC, Account Aggregator, DPDP |
