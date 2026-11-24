@@ -334,6 +334,7 @@ claude plugin install <plugin>@viprasol
 | --- | --- |
 | [`trading-studio`](https://github.com/Viprasol-Tech/claude-trading-skills) | Pine Script v6, MQL5 Expert Advisors, backtest audits, position sizing |
 | [`tradingview-automation`](https://github.com/Viprasol-Tech/claude-tradingview-automation-skills) | TradingView alerts to real orders: webhooks, Zerodha / Angel One, Binance, MT5 |
+| [`options-desk`](https://github.com/Viprasol-Tech/claude-options-trading-skills) | options software: Greeks and IV, spread payoffs and orders, NSE F&O rules |
 | [`crypto-bots`](https://github.com/Viprasol-Tech/claude-crypto-bot-skills) | exchange bots: signing, order precision, order books, liquidation maths |
 | [`fintech-studio`](https://github.com/Viprasol-Tech/claude-fintech-skills) | payments, ledgers, webhooks, reconciliation, PCI DSS, KYC/AML |
 | [`india-stack`](https://github.com/Viprasol-Tech/claude-india-stack-skills) | UPI, GST, Aadhaar eKYC, Account Aggregator, DPDP |
