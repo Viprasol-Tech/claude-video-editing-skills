@@ -333,6 +333,7 @@ claude plugin install <plugin>@viprasol
 | Plugin | For |
 | --- | --- |
 | [`trading-studio`](https://github.com/Viprasol-Tech/claude-trading-skills) | Pine Script v6, MQL5 Expert Advisors, backtest audits, position sizing |
+| [`agent-trading-guard`](https://github.com/Viprasol-Tech/claude-ai-trading-agent-skills) | AI trading agents that can't blow up an account: order gate, prompt injection, backtest leakage |
 | [`tradingview-automation`](https://github.com/Viprasol-Tech/claude-tradingview-automation-skills) | TradingView alerts to real orders: webhooks, Zerodha / Angel One, Binance, MT5 |
 | [`options-desk`](https://github.com/Viprasol-Tech/claude-options-trading-skills) | options software: Greeks and IV, spread payoffs and orders, NSE F&O rules |
 | [`prop-firm-guard`](https://github.com/Viprasol-Tech/claude-prop-firm-skills) | prop-firm rules: FTMO/Topstep drawdowns, challenge odds, MT5 equity guard |
